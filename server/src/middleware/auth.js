@@ -1,3 +1,0 @@
-import jwt from 'jsonwebtoken'; import {prisma} from '../prisma.js';
-export async function requireAuth(req,res,next){try{const token=req.headers.authorization?.replace('Bearer ','');if(!token)return res.status(401).json({message:'Sign in required.'});const data=jwt.verify(token,process.env.JWT_SECRET);const user=await prisma.user.findUnique({where:{id:data.id},include:{profile:true}});if(!user||!user.enabled)return res.status(401).json({message:'Account unavailable.'});req.user=user;next()}catch{res.status(401).json({message:'Your session is invalid or expired.'})}}
-export const requireRole=(role)=>(req,res,next)=>req.user.role===role?next():res.status(403).json({message:'You do not have access to this area.'});
