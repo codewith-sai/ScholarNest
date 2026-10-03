@@ -1,72 +1,57 @@
 import { io } from "socket.io-client";
 
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL ||
+  "http://localhost:8080";
+
 let socket = null;
 
-const getSocketUrl = () => {
-  const socketUrl = import.meta.env.VITE_SOCKET_URL;
-
-  if (socketUrl) {
-    return socketUrl.replace(/\/+$/, "");
-  }
-
-  const apiUrl = import.meta.env.VITE_API_URL;
-
-  if (apiUrl) {
-    return apiUrl.replace(/\/api\/?$/, "").replace(/\/+$/, "");
-  }
-
-  return "http://localhost:5000";
-};
-
-export const connectSocket = (user) => {
-  if (!user) return null;
-
-  // Reuse an existing connection
+/*
+ * Create socket connection.
+ *
+ * Authentication/authorization is handled by the backend.
+ * No JWT or user information is stored in localStorage
+ * or manually added to the socket connection.
+ */
+export const connectSocket = () => {
   if (socket?.connected) {
     return socket;
   }
 
-  // Clean up an old socket instance
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
-
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("scholarnet_token") ||
-    localStorage.getItem("authToken");
-
-  socket = io(getSocketUrl(), {
+  socket = io(SOCKET_URL, {
+    withCredentials: true,
     autoConnect: true,
     transports: ["websocket", "polling"],
-    auth: {
-      token,
-      userId: user._id || user.id,
-      userName: user.name || user.fullName || user.email,
-      role: user.role,
-    },
   });
 
   socket.on("connect", () => {
-    console.log("ScholarNet socket connected:", socket.id);
-  });
-
-  socket.on("disconnect", (reason) => {
-    console.log("ScholarNet socket disconnected:", reason);
+    console.log("Socket connected:", socket.id);
   });
 
   socket.on("connect_error", (error) => {
-    console.error("ScholarNet socket connection error:", error.message);
+    console.error(
+      "Socket connection error:",
+      error?.message || error
+    );
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log("Socket disconnected:", reason);
   });
 
   return socket;
 };
 
+/*
+ * Get the current socket instance.
+ */
 export const getSocket = () => {
   return socket;
 };
 
+/*
+ * Disconnect socket.
+ */
 export const disconnectSocket = () => {
   if (socket) {
     socket.disconnect();
@@ -74,13 +59,37 @@ export const disconnectSocket = () => {
   }
 };
 
-export const isSocketConnected = () => {
-  return Boolean(socket?.connected);
+/*
+ * Subscribe to a socket event.
+ */
+export const onSocketEvent = (event, callback) => {
+  if (!socket) {
+    connectSocket();
+  }
+
+  socket.on(event, callback);
+
+  return () => {
+    socket?.off(event, callback);
+  };
 };
 
-export default {
-  connectSocket,
-  getSocket,
-  disconnectSocket,
-  isSocketConnected,
+/*
+ * Remove a socket event listener.
+ */
+export const offSocketEvent = (event, callback) => {
+  socket?.off(event, callback);
 };
+
+/*
+ * Send data through socket.
+ */
+export const emitSocketEvent = (event, data) => {
+  if (!socket) {
+    connectSocket();
+  }
+
+  socket.emit(event, data);
+};
+
+export default socket;

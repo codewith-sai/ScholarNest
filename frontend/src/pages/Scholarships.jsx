@@ -1,1190 +1,1170 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  ArrowRight,
+  Bookmark,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
   Search,
   SlidersHorizontal,
-  X,
-  GraduationCap,
-  MapPin,
-  IndianRupee,
-  CalendarDays,
-  ChevronDown,
-  Bookmark,
-  ExternalLink,
   Sparkles,
 } from "lucide-react";
-import { toast } from "react-toastify";
-import api from "../services/api";
 
-const DEFAULT_FILTERS = {
-  category: "",
-  state: "",
-  course: "",
-  educationLevel: "",
-  scholarshipType: "",
-  provider: "",
-  incomeLimit: "",
-  academicRequirement: "",
-};
+import gsap from "gsap";
 
-function Scholarships() {
-  const [scholarships, setScholarships] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [eligibleOnly, setEligibleOnly] = useState(true);
-  const [filters, setFilters] =
-    useState(DEFAULT_FILTERS);
-  const [showFilters, setShowFilters] =
-    useState(false);
-  const [savedIds, setSavedIds] = useState(
-    new Set()
-  );
+import ScholarshipCard from "../components/scholarships/ScholarshipCard";
+import ScholarshipFilters from "../components/scholarships/ScholarshipFilters";
+import ScholarshipSearch from "../components/scholarships/ScholarshipSearch";
+
+import LoadingSpinner from "../components/common/LoadingSpinner";
+import ErrorMessage from "../components/common/ErrorMessage";
+import EmptyState from "../components/common/EmptyState";
+
+import { useScholarship } from "../context/ScholarshipContext";
+
+// ============================================================
+// SCHOLARSHIPS PAGE
+// ============================================================
+
+const Scholarships = () => {
+  const navigate = useNavigate();
+
+  // ==========================================================
+  // REFS
+  // ==========================================================
+
+  const pageRef = useRef(null);
+  const gridRef = useRef(null);
+
+  // ==========================================================
+  // SCHOLARSHIP CONTEXT
+  // ==========================================================
+
+  const {
+    scholarships,
+    loading,
+    error,
+
+    fetchScholarships,
+    searchScholarships,
+
+    saveScholarship,
+    removeSavedScholarship,
+
+    fetchSavedScholarships,
+    isScholarshipSaved,
+
+    savedScholarships,
+  } = useScholarship();
+
+  // ==========================================================
+  // LOCAL STATE
+  // ==========================================================
+
+  const [searchValue, setSearchValue] = useState("");
+
+  const [filters, setFilters] = useState({});
+
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [savedOnly, setSavedOnly] = useState(false);
+
+  const [sortBy, setSortBy] = useState("relevance");
+
+  const [page, setPage] = useState(1);
+
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [localError, setLocalError] = useState("");
+
+  // ==========================================================
+  // CONSTANTS
+  // ==========================================================
+
+  const itemsPerPage = 12;
+
+  // ==========================================================
+  // PAGINATION HELPER
+  // ==========================================================
+
+  const updatePagination = (result) => {
+    const pages =
+      Number(
+        result?.pagination?.totalPages
+      ) || 1;
+
+    setTotalPages(Math.max(1, pages));
+  };
+
+  // ==========================================================
+  // LOAD SCHOLARSHIPS
+  // ==========================================================
+
+  const loadScholarships = async (
+    customPage = 1
+  ) => {
+    try {
+      setLocalError("");
+
+      const params = {
+        page: customPage,
+        limit: itemsPerPage,
+        sort: sortBy,
+        ...filters,
+      };
+
+      if (searchValue.trim()) {
+        params.search =
+          searchValue.trim();
+      }
+
+      const result =
+        await fetchScholarships(params);
+
+      if (!result?.success) {
+        setLocalError(
+          result?.error ||
+            "Failed to load scholarships."
+        );
+
+        return;
+      }
+
+      updatePagination(result);
+    } catch (error) {
+      console.error(
+        "LOAD SCHOLARSHIPS ERROR:",
+        error
+      );
+
+      setLocalError(
+        error?.message ||
+          "Failed to load scholarships."
+      );
+    }
+  };
+
+  // ==========================================================
+  // INITIAL LOAD
+  // ==========================================================
 
   useEffect(() => {
-    loadScholarships();
-    loadSavedScholarships();
-  }, [eligibleOnly]);
+    const loadInitialScholarships =
+      async () => {
+        try {
+          setLocalError("");
 
-  const loadScholarships = async () => {
-    setLoading(true);
+          const result =
+            await fetchScholarships({
+              page: 1,
+              limit: itemsPerPage,
+              sort: "relevance",
+            });
 
-    try {
-      const endpoint = eligibleOnly
-        ? "/scholarships/eligible"
-        : "/scholarships";
+          if (!result?.success) {
+            setLocalError(
+              result?.error ||
+                "Failed to load scholarships."
+            );
 
-      const response = await api.get(endpoint);
-
-      const data = response.data;
-
-      setScholarships(
-        data.scholarships ||
-          data.results ||
-          data ||
-          []
-      );
-    } catch (error) {
-      console.error(
-        "Scholarship loading error:",
-        error
-      );
-
-      toast.error(
-        "Unable to load scholarships."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadSavedScholarships =
-    async () => {
-      try {
-        const response =
-          await api.get("/saved");
-
-        const saved =
-          response.data.saved ||
-          response.data ||
-          [];
-
-        setSavedIds(
-          new Set(
-            saved.map(
-              (item) =>
-                item.scholarship?._id ||
-                item.scholarship?.id ||
-                item.scholarshipId ||
-                item._id ||
-                item.id
-            )
-          )
-        );
-      } catch (error) {
-        console.error(
-          "Saved scholarships error:",
-          error
-        );
-      }
-    };
-
-  const updateFilter = (
-    name,
-    value
-  ) => {
-    setFilters((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  };
-
-  const clearFilters = () => {
-    setFilters(DEFAULT_FILTERS);
-    setSearch("");
-  };
-
-  const activeFilterCount =
-    Object.values(filters).filter(Boolean)
-      .length;
-
-  const filteredScholarships =
-    useMemo(() => {
-      const query =
-        search.trim().toLowerCase();
-
-      return scholarships.filter(
-        (scholarship) => {
-          const name =
-            scholarship.name ||
-            scholarship.title ||
-            "";
-
-          const provider =
-            scholarship.provider || "";
-
-          const description =
-            scholarship.description || "";
-
-          const matchesSearch =
-            !query ||
-            name
-              .toLowerCase()
-              .includes(query) ||
-            provider
-              .toLowerCase()
-              .includes(query) ||
-            description
-              .toLowerCase()
-              .includes(query);
-
-          if (!matchesSearch) return false;
-
-          if (
-            filters.category &&
-            !matchesValue(
-              scholarship.category,
-              filters.category
-            ) &&
-            !matchesValue(
-              scholarship.eligibility?.category,
-              filters.category
-            )
-          ) {
-            return false;
+            return;
           }
 
-          if (
-            filters.state &&
-            !matchesValue(
-              scholarship.state,
-              filters.state
-            ) &&
-            !matchesValue(
-              scholarship.eligibility?.states,
-              filters.state
-            ) &&
-            !matchesValue(
-              scholarship.eligibility?.state,
-              filters.state
-            )
-          ) {
-            return false;
-          }
+          updatePagination(result);
+        } catch (error) {
+          console.error(
+            "INITIAL SCHOLARSHIP LOAD ERROR:",
+            error
+          );
 
-          if (
-            filters.course &&
-            !matchesValue(
-              scholarship.course,
-              filters.course
-            ) &&
-            !matchesValue(
-              scholarship.eligibility?.courses,
-              filters.course
-            )
-          ) {
-            return false;
-          }
+          setLocalError(
+            error?.message ||
+              "Failed to load scholarships."
+          );
+        }
+      };
 
-          if (
-            filters.educationLevel &&
-            !matchesValue(
-              scholarship.educationLevel,
-              filters.educationLevel
-            ) &&
-            !matchesValue(
-              scholarship.eligibility
-                ?.educationLevel,
-              filters.educationLevel
-            )
-          ) {
-            return false;
-          }
+    loadInitialScholarships();
 
-          if (
-            filters.scholarshipType &&
-            !matchesValue(
-              scholarship.type,
-              filters.scholarshipType
-            )
-          ) {
-            return false;
-          }
+    // Intentionally runs once when the page mounts.
+    // Do not add loadScholarships here because it
+    // depends on changing search/filter state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-          if (
-            filters.provider &&
-            !provider
-              .toLowerCase()
-              .includes(
-                filters.provider.toLowerCase()
-              )
-          ) {
-            return false;
-          }
+  // ==========================================================
+  // HEADER GSAP ANIMATION
+  // ==========================================================
 
-          if (
-            filters.incomeLimit &&
-            !matchesIncome(
-              scholarship,
-              filters.incomeLimit
-            )
-          ) {
-            return false;
-          }
-
-          if (
-            filters.academicRequirement &&
-            !matchesAcademicRequirement(
-              scholarship,
-              filters.academicRequirement
-            )
-          ) {
-            return false;
-          }
-
-          return true;
+  useEffect(() => {
+    const context = gsap.context(() => {
+      gsap.from(
+        ".scholarships-header",
+        {
+          opacity: 0,
+          y: 25,
+          duration: 0.7,
+          ease: "power3.out",
         }
       );
-    }, [
-      scholarships,
-      search,
-      filters,
-    ]);
 
-  const toggleSave = async (
+      gsap.from(
+        ".scholarship-toolbar",
+        {
+          opacity: 0,
+          y: 20,
+          duration: 0.6,
+          delay: 0.15,
+          ease: "power3.out",
+        }
+      );
+    }, pageRef);
+
+    return () => {
+      context.revert();
+    };
+  }, []);
+
+  // ==========================================================
+  // SCHOLARSHIP GRID ANIMATION
+  // ==========================================================
+
+  useEffect(() => {
+    if (
+      loading ||
+      !gridRef.current ||
+      !gridRef.current.children.length
+    ) {
+      return;
+    }
+
+    gsap.fromTo(
+      gridRef.current.children,
+      {
+        opacity: 0,
+        y: 20,
+      },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.45,
+        stagger: 0.06,
+        ease: "power2.out",
+      }
+    );
+  }, [loading, scholarships, savedOnly]);
+
+  // ==========================================================
+  // SEARCH
+  // ==========================================================
+
+  const handleSearch = async (
+    value
+  ) => {
+    try {
+      setSearchValue(value);
+      setPage(1);
+      setLocalError("");
+
+      // Empty search = load normal scholarships
+      if (!value.trim()) {
+        const result =
+          await fetchScholarships({
+            page: 1,
+            limit: itemsPerPage,
+            sort: sortBy,
+            ...filters,
+          });
+
+        if (!result?.success) {
+          setLocalError(
+            result?.error ||
+              "Failed to load scholarships."
+          );
+
+          return;
+        }
+
+        updatePagination(result);
+
+        return;
+      }
+
+      const result =
+        await searchScholarships(
+          value.trim(),
+          {
+            ...filters,
+            page: 1,
+            limit: itemsPerPage,
+            sort: sortBy,
+          }
+        );
+
+      if (!result?.success) {
+        setLocalError(
+          result?.error ||
+            "Failed to search scholarships."
+        );
+
+        return;
+      }
+
+      updatePagination(result);
+    } catch (error) {
+      console.error(
+        "SEARCH ERROR:",
+        error
+      );
+
+      setLocalError(
+        error?.message ||
+          "Failed to search scholarships."
+      );
+    }
+  };
+
+  // ==========================================================
+  // APPLY FILTERS
+  // ==========================================================
+
+  const handleApplyFilters = async (
+    newFilters
+  ) => {
+    try {
+      setFilters(newFilters);
+      setShowFilters(false);
+      setPage(1);
+      setLocalError("");
+
+      const params = {
+        ...newFilters,
+        page: 1,
+        limit: itemsPerPage,
+        sort: sortBy,
+      };
+
+      if (searchValue.trim()) {
+        params.search =
+          searchValue.trim();
+      }
+
+      const result =
+        await fetchScholarships(params);
+
+      if (!result?.success) {
+        setLocalError(
+          result?.error ||
+            "Failed to apply filters."
+        );
+
+        return;
+      }
+
+      updatePagination(result);
+    } catch (error) {
+      console.error(
+        "APPLY FILTERS ERROR:",
+        error
+      );
+
+      setLocalError(
+        error?.message ||
+          "Failed to apply filters."
+      );
+    }
+  };
+
+  // ==========================================================
+  // RESET FILTERS
+  // ==========================================================
+
+  const handleResetFilters =
+    async () => {
+      try {
+        setFilters({});
+        setSearchValue("");
+        setPage(1);
+        setSortBy("relevance");
+        setSavedOnly(false);
+        setLocalError("");
+
+        const result =
+          await fetchScholarships({
+            page: 1,
+            limit: itemsPerPage,
+            sort: "relevance",
+          });
+
+        if (!result?.success) {
+          setLocalError(
+            result?.error ||
+              "Failed to reset filters."
+          );
+
+          return;
+        }
+
+        updatePagination(result);
+      } catch (error) {
+        console.error(
+          "RESET FILTERS ERROR:",
+          error
+        );
+
+        setLocalError(
+          error?.message ||
+            "Failed to reset filters."
+        );
+      }
+    };
+
+  // ==========================================================
+  // SORT CHANGE
+  // ==========================================================
+
+  const handleSortChange = async (
+    event
+  ) => {
+    try {
+      const value =
+        event.target.value;
+
+      setSortBy(value);
+      setPage(1);
+      setLocalError("");
+
+      const params = {
+        ...filters,
+        page: 1,
+        limit: itemsPerPage,
+        sort: value,
+      };
+
+      if (searchValue.trim()) {
+        params.search =
+          searchValue.trim();
+      }
+
+      const result =
+        await fetchScholarships(params);
+
+      if (!result?.success) {
+        setLocalError(
+          result?.error ||
+            "Failed to sort scholarships."
+        );
+
+        return;
+      }
+
+      updatePagination(result);
+    } catch (error) {
+      console.error(
+        "SORT ERROR:",
+        error
+      );
+
+      setLocalError(
+        error?.message ||
+          "Failed to sort scholarships."
+      );
+    }
+  };
+
+  // ==========================================================
+  // SAVE / REMOVE SCHOLARSHIP
+  // ==========================================================
+
+  const handleSave = async (
     scholarship
   ) => {
-    const id =
-      scholarship._id ||
-      scholarship.id;
-
-    if (!id) return;
-
-    const isSaved =
-      savedIds.has(id);
-
     try {
-      if (isSaved) {
-        await api.delete(
-          `/saved/${id}`
+      const id =
+        scholarship?._id ||
+        scholarship?.id;
+
+      if (!id) {
+        setLocalError(
+          "Scholarship ID is missing."
         );
 
-        setSavedIds((current) => {
-          const next = new Set(current);
-          next.delete(id);
-          return next;
-        });
+        return;
+      }
 
-        toast.success(
-          "Scholarship removed from saved list."
-        );
+      setLocalError("");
+
+      let result;
+
+      if (isScholarshipSaved(id)) {
+        result =
+          await removeSavedScholarship(
+            id
+          );
       } else {
-        await api.post(
-          `/saved/${id}`
-        );
+        result =
+          await saveScholarship(id);
+      }
 
-        setSavedIds((current) => {
-          const next = new Set(current);
-          next.add(id);
-          return next;
-        });
-
-        toast.success(
-          "Scholarship saved."
+      if (!result?.success) {
+        setLocalError(
+          result?.error ||
+            "Failed to update saved scholarship."
         );
       }
     } catch (error) {
       console.error(
-        "Save scholarship error:",
+        "SAVE SCHOLARSHIP ERROR:",
         error
       );
 
-      toast.error(
-        error.response?.data?.message ||
-          "Unable to update saved scholarship."
+      setLocalError(
+        error?.message ||
+          "Failed to update saved scholarship."
       );
     }
   };
 
-  const formatDate = (date) => {
-    if (!date) return "Not specified";
+  // ==========================================================
+  // SAVED ONLY
+  // ==========================================================
 
-    return new Date(date).toLocaleDateString(
-      "en-IN",
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
+  const handleSavedOnly =
+    async () => {
+      try {
+        const nextValue =
+          !savedOnly;
+
+        setSavedOnly(nextValue);
+        setPage(1);
+        setLocalError("");
+
+        if (!nextValue) {
+          await loadScholarships(1);
+          return;
+        }
+
+        const result =
+          await fetchSavedScholarships();
+
+        if (!result?.success) {
+          setLocalError(
+            result?.error ||
+              "Failed to load saved scholarships."
+          );
+        }
+      } catch (error) {
+        console.error(
+          "SAVED ONLY ERROR:",
+          error
+        );
+
+        setLocalError(
+          error?.message ||
+            "Failed to load saved scholarships."
+        );
       }
-    );
-  };
-
-  const getDaysLeft = (date) => {
-    if (!date) return null;
-
-    const today = new Date();
-    const deadline = new Date(date);
-
-    today.setHours(0, 0, 0, 0);
-    deadline.setHours(0, 0, 0, 0);
-
-    return Math.ceil(
-      (deadline - today) /
-        (1000 * 60 * 60 * 24)
-    );
-  };
-
-  const getDeadlineStatus = (
-    date
-  ) => {
-    const days = getDaysLeft(date);
-
-    if (days === null) {
-      return {
-        label: "Deadline unavailable",
-        className:
-          "bg-slate-100 text-slate-500",
-      };
-    }
-
-    if (days < 0) {
-      return {
-        label: "Application Closed",
-        className:
-          "bg-slate-100 text-slate-500",
-      };
-    }
-
-    if (days === 0) {
-      return {
-        label: "Due Today",
-        className:
-          "bg-rose-100 text-rose-700",
-      };
-    }
-
-    if (days <= 7) {
-      return {
-        label: `${days} days left`,
-        className:
-          "bg-rose-50 text-rose-600",
-      };
-    }
-
-    if (days <= 30) {
-      return {
-        label: `${days} days left`,
-        className:
-          "bg-amber-50 text-amber-600",
-      };
-    }
-
-    return {
-      label: `${days} days left`,
-      className:
-        "bg-emerald-50 text-emerald-600",
     };
+
+  // ==========================================================
+  // PAGE CHANGE
+  // ==========================================================
+
+  const handlePageChange = async (
+    nextPage
+  ) => {
+    if (
+      nextPage < 1 ||
+      nextPage > totalPages ||
+      loading
+    ) {
+      return;
+    }
+
+    try {
+      setPage(nextPage);
+      setLocalError("");
+
+      const params = {
+        ...filters,
+        page: nextPage,
+        limit: itemsPerPage,
+        sort: sortBy,
+      };
+
+      if (searchValue.trim()) {
+        params.search =
+          searchValue.trim();
+      }
+
+      const result =
+        await fetchScholarships(params);
+
+      if (!result?.success) {
+        setLocalError(
+          result?.error ||
+            "Failed to load page."
+        );
+
+        return;
+      }
+
+      updatePagination(result);
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    } catch (error) {
+      console.error(
+        "PAGE CHANGE ERROR:",
+        error
+      );
+
+      setLocalError(
+        error?.message ||
+          "Failed to load scholarships."
+      );
+    }
   };
+
+  // ==========================================================
+  // DISPLAYED SCHOLARSHIPS
+  // ==========================================================
+
+  const displayedScholarships =
+    savedOnly
+      ? savedScholarships
+      : scholarships;
+
+  // ==========================================================
+  // ACTIVE FILTER COUNT
+  // ==========================================================
+
+  const activeFilterCount =
+    Object.values(filters).filter(
+      (value) =>
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== ""
+    ).length;
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 p-6 text-white shadow-xl shadow-indigo-100 sm:p-8">
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+    <div
+      ref={pageRef}
+      className="min-h-screen bg-slate-950 px-4 py-6 text-white sm:px-6 lg:px-8"
+    >
+      <div className="mx-auto max-w-7xl">
 
-        <div className="relative z-10">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold">
-            <Sparkles size={14} />
-            Scholarship Discovery
+        {/* ==================================================
+            HEADER
+        ================================================== */}
+
+        <div className="scholarships-header mb-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-400">
+                <Sparkles size={14} />
+                Personalized Scholarship Discovery
+              </div>
+
+              <h1 className="text-3xl font-bold sm:text-4xl">
+                Find Scholarships
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
+                Discover scholarship opportunities based on your
+                education, category, income, location, academic
+                performance, and eligibility.
+              </p>
+            </div>
+
+            <Link
+              to="/saved-scholarships"
+              className="inline-flex w-fit items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+            >
+              <Bookmark size={17} />
+              Saved Scholarships
+              <ArrowRight size={16} />
+            </Link>
           </div>
-
-          <h1 className="text-2xl font-black sm:text-3xl">
-            Find Scholarships That Match You
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-indigo-100">
-            Explore scholarships based on your profile,
-            eligibility criteria, academic information and
-            financial requirements.
-          </p>
         </div>
-      </section>
 
-      {/* Search */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row">
-          <div className="relative flex-1">
-            <Search
-              size={19}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+        {/* ==================================================
+            SEARCH TOOLBAR
+        ================================================== */}
 
-            <input
-              type="text"
-              value={search}
-              onChange={(event) =>
-                setSearch(
-                  event.target.value
-                )
-              }
-              placeholder="Search scholarships, providers or keywords..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 text-sm outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-            />
+        <div className="scholarship-toolbar mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5">
 
-            {search && (
+          <ScholarshipSearch
+            value={searchValue}
+            onSearch={handleSearch}
+            onFilterClick={() =>
+              setShowFilters(true)
+            }
+            placeholder="Search scholarships by name, provider, course..."
+          />
+
+          <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex flex-wrap items-center gap-2">
+
+              {/* Saved Only */}
+
+              <button
+                type="button"
+                onClick={handleSavedOnly}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                  savedOnly
+                    ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                    : "border-white/10 bg-white/5 text-slate-400 hover:text-white"
+                }`}
+              >
+                <Bookmark size={14} />
+                Saved Only
+              </button>
+
+              {/* Filters */}
+
               <button
                 type="button"
                 onClick={() =>
-                  setSearch("")
+                  setShowFilters(true)
                 }
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-400 transition hover:text-white"
               >
-                <X size={16} />
+                <SlidersHorizontal
+                  size={14}
+                />
+
+                Filters
+
+                {activeFilterCount >
+                  0 && (
+                  <span className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
               </button>
-            )}
-          </div>
+            </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              setShowFilters(
-                (current) => !current
-              )
-            }
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
-          >
-            <SlidersHorizontal
-              size={17}
-            />
-            Filters
+            {/* Sort */}
 
-            {activeFilterCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[10px] font-bold text-white">
-                {activeFilterCount}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">
+                Sort by
               </span>
-            )}
 
-            <ChevronDown
-              size={16}
-              className={`transition ${
-                showFilters
-                  ? "rotate-180"
-                  : ""
-              }`}
-            />
-          </button>
+              <select
+                value={sortBy}
+                onChange={
+                  handleSortChange
+                }
+                className="rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-xs text-slate-300 outline-none focus:border-blue-500"
+              >
+                <option value="relevance">
+                  Relevance
+                </option>
+
+                <option value="deadline">
+                  Deadline
+                </option>
+
+                <option value="amount-high">
+                  Amount: High to Low
+                </option>
+
+                <option value="amount-low">
+                  Amount: Low to High
+                </option>
+
+                <option value="newest">
+                  Newest
+                </option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Eligible toggle */}
-        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <label className="flex cursor-pointer items-center gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={eligibleOnly}
-              onClick={() =>
-                setEligibleOnly(
-                  (current) => !current
-                )
-              }
-              className={`relative h-6 w-11 rounded-full transition ${
-                eligibleOnly
-                  ? "bg-indigo-600"
-                  : "bg-slate-300"
-              }`}
-            >
-              <span
-                className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition ${
-                  eligibleOnly
-                    ? "left-6"
-                    : "left-1"
-                }`}
-              />
-            </button>
+        {/* ==================================================
+            FILTER DRAWER
+        ================================================== */}
 
-            <span className="text-sm font-bold text-slate-700">
-              Show scholarships matching my profile
-            </span>
-          </label>
-
-          <p className="text-xs text-slate-400">
-            {filteredScholarships.length}{" "}
-            scholarship
-            {filteredScholarships.length !==
-            1
-              ? "s"
-              : ""}{" "}
-            found
-          </p>
-        </div>
-
-        {/* Filters */}
         {showFilters && (
-          <FilterPanel
-            filters={filters}
-            updateFilter={updateFilter}
-            clearFilters={clearFilters}
-          />
-        )}
-      </section>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-2xl sm:p-6">
 
-      {/* Results */}
-      <section>
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <ScholarshipFilters
+                filters={filters}
+                onApply={
+                  handleApplyFilters
+                }
+                onReset={
+                  handleResetFilters
+                }
+                onClose={() =>
+                  setShowFilters(false)
+                }
+              />
+
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================
+            ERROR
+        ================================================== */}
+
+        {(error || localError) &&
+          !loading && (
+            <div className="mb-6">
+              <ErrorMessage
+                message={
+                  localError || error
+                }
+                onRetry={() =>
+                  loadScholarships(1)
+                }
+                showRetry
+              />
+            </div>
+          )}
+
+        {/* ==================================================
+            RESULTS HEADER
+        ================================================== */}
+
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
           <div>
-            <h2 className="text-xl font-black text-slate-900">
-              {eligibleOnly
-                ? "Eligible for You"
-                : "Browse Scholarships"}
+            <h2 className="text-lg font-semibold">
+              {savedOnly
+                ? "Saved Scholarships"
+                : "Available Scholarships"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              {eligibleOnly
-                ? "Based on the information provided in your profile."
-                : "Browse available scholarship opportunities."}
+              {loading
+                ? "Finding scholarships..."
+                : `${displayedScholarships.length} scholarship${
+                    displayedScholarships.length ===
+                    1
+                      ? ""
+                      : "s"
+                  } found`}
             </p>
           </div>
 
-          {activeFilterCount > 0 && (
+          {activeFilterCount >
+            0 && (
             <button
               type="button"
-              onClick={clearFilters}
-              className="inline-flex w-fit items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700"
+              onClick={
+                handleResetFilters
+              }
+              className="inline-flex w-fit items-center gap-2 text-sm text-blue-400 transition hover:text-blue-300"
             >
-              <X size={14} />
+              <Filter size={15} />
               Clear filters
             </button>
           )}
         </div>
 
-        {loading ? (
-          <ScholarshipLoading />
-        ) : filteredScholarships.length ===
-          0 ? (
-          <EmptyState
-            clearFilters={clearFilters}
-          />
-        ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredScholarships.map(
-              (scholarship) => (
-                <ScholarshipCard
-                  key={
-                    scholarship._id ||
-                    scholarship.id
-                  }
-                  scholarship={scholarship}
-                  saved={
-                    savedIds.has(
-                      scholarship._id ||
-                        scholarship.id
-                    )
-                  }
-                  toggleSave={toggleSave}
-                  formatDate={formatDate}
-                  getDeadlineStatus={
-                    getDeadlineStatus
-                  }
-                />
-              )
-            )}
+        {/* ==================================================
+            LOADING
+        ================================================== */}
+
+        {loading && (
+          <div className="flex min-h-[300px] items-center justify-center">
+            <LoadingSpinner
+              size="large"
+              message="Finding scholarships for you..."
+            />
           </div>
         )}
-      </section>
-    </div>
-  );
-}
 
-/* -------------------------------------------------
-   Filter Panel
-------------------------------------------------- */
+        {/* ==================================================
+            EMPTY STATE
+        ================================================== */}
 
-function FilterPanel({
-  filters,
-  updateFilter,
-  clearFilters,
-}) {
-  return (
-    <div className="mt-5 border-t border-slate-100 pt-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-extrabold text-slate-800">
-          Filter Scholarships
-        </h3>
-
-        <button
-          type="button"
-          onClick={clearFilters}
-          className="text-xs font-bold text-slate-400 hover:text-indigo-600"
-        >
-          Reset
-        </button>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <FilterSelect
-          label="Category"
-          value={filters.category}
-          onChange={(value) =>
-            updateFilter(
-              "category",
-              value
-            )
-          }
-          options={[
-            "General",
-            "OBC",
-            "SC",
-            "ST",
-            "EWS",
-            "Minority",
-            "Other",
-          ]}
-        />
-
-        <FilterSelect
-          label="State"
-          value={filters.state}
-          onChange={(value) =>
-            updateFilter(
-              "state",
-              value
-            )
-          }
-          options={[
-            "Maharashtra",
-            "Gujarat",
-            "Karnataka",
-            "Madhya Pradesh",
-            "Rajasthan",
-            "Uttar Pradesh",
-            "Tamil Nadu",
-            "Delhi",
-          ]}
-        />
-
-        <FilterSelect
-          label="Course"
-          value={filters.course}
-          onChange={(value) =>
-            updateFilter(
-              "course",
-              value
-            )
-          }
-          options={[
-            "Engineering",
-            "Computer Science",
-            "Management",
-            "Medicine",
-            "Commerce",
-            "Arts",
-            "Science",
-            "Diploma",
-          ]}
-        />
-
-        <FilterSelect
-          label="Education Level"
-          value={
-            filters.educationLevel
-          }
-          onChange={(value) =>
-            updateFilter(
-              "educationLevel",
-              value
-            )
-          }
-          options={[
-            "School",
-            "Diploma",
-            "Undergraduate",
-            "Postgraduate",
-            "PhD",
-          ]}
-        />
-
-        <FilterSelect
-          label="Scholarship Type"
-          value={
-            filters.scholarshipType
-          }
-          onChange={(value) =>
-            updateFilter(
-              "scholarshipType",
-              value
-            )
-          }
-          options={[
-            "Government",
-            "Private",
-            "Merit",
-            "Need Based",
-            "Category Based",
-            "Minority",
-          ]}
-        />
-
-        <FilterSelect
-          label="Income Limit"
-          value={filters.incomeLimit}
-          onChange={(value) =>
-            updateFilter(
-              "incomeLimit",
-              value
-            )
-          }
-          options={[
-            "₹1 Lakh",
-            "₹2 Lakh",
-            "₹2.5 Lakh",
-            "₹3 Lakh",
-            "₹5 Lakh",
-            "₹8 Lakh",
-          ]}
-        />
-
-        <FilterSelect
-          label="Academic Requirement"
-          value={
-            filters.academicRequirement
-          }
-          onChange={(value) =>
-            updateFilter(
-              "academicRequirement",
-              value
-            )
-          }
-          options={[
-            "60%",
-            "65%",
-            "70%",
-            "75%",
-            "80%",
-            "85%",
-          ]}
-        />
-
-        <div>
-          <label className="mb-2 block text-xs font-bold text-slate-600">
-            Provider
-          </label>
-
-          <input
-            type="text"
-            value={filters.provider}
-            onChange={(event) =>
-              updateFilter(
-                "provider",
-                event.target.value
-              )
-            }
-            placeholder="Search provider..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}) {
-  return (
-    <div>
-      <label className="mb-2 block text-xs font-bold text-slate-600">
-        {label}
-      </label>
-
-      <select
-        value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
-        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-      >
-        <option value="">
-          All {label}s
-        </option>
-
-        {options.map((option) => (
-          <option
-            key={option}
-            value={option}
-          >
-            {option}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-/* -------------------------------------------------
-   Scholarship Card
-------------------------------------------------- */
-
-function ScholarshipCard({
-  scholarship,
-  saved,
-  toggleSave,
-  formatDate,
-  getDeadlineStatus,
-}) {
-  const id =
-    scholarship._id ||
-    scholarship.id;
-
-  const deadline =
-    scholarship.deadline ||
-    scholarship.applicationDeadline;
-
-  const deadlineStatus =
-    getDeadlineStatus(deadline);
-
-  const benefit =
-    scholarship.benefit ||
-    scholarship.amount ||
-    scholarship.benefits?.amount ||
-    scholarship.benefits?.tuition ||
-    "Benefits vary";
-
-  const category =
-    scholarship.category ||
-    scholarship.eligibility?.category ||
-    "General";
-
-  const state =
-    scholarship.state ||
-    scholarship.eligibility?.state ||
-    scholarship.eligibility?.states?.[0] ||
-    "Multiple states";
-
-  return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-50">
-      <div className="relative bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm">
-            <GraduationCap size={23} />
-          </div>
-
-          <button
-            type="button"
-            aria-label={
-              saved
-                ? "Remove from saved"
-                : "Save scholarship"
-            }
-            onClick={() =>
-              toggleSave(scholarship)
-            }
-            className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
-              saved
-                ? "bg-indigo-600 text-white"
-                : "bg-white text-slate-500 hover:bg-indigo-600 hover:text-white"
-            }`}
-          >
-            <Bookmark
-              size={18}
-              fill={
-                saved
-                  ? "currentColor"
-                  : "none"
+        {!loading &&
+          displayedScholarships.length ===
+            0 && (
+            <EmptyState
+              icon={Search}
+              title={
+                savedOnly
+                  ? "No saved scholarships"
+                  : "No scholarships found"
+              }
+              message={
+                savedOnly
+                  ? "Save scholarships you are interested in and they will appear here."
+                  : "Try changing your search or filters to find more scholarship opportunities."
+              }
+              buttonText={
+                savedOnly
+                  ? "Explore Scholarships"
+                  : "Clear Filters"
+              }
+              onAction={
+                savedOnly
+                  ? () =>
+                      setSavedOnly(
+                        false
+                      )
+                  : handleResetFilters
               }
             />
-          </button>
-        </div>
-
-        <div className="mt-5 flex items-center gap-2">
-          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-indigo-600 shadow-sm">
-            {category}
-          </span>
-
-          {scholarship.isEligible !==
-            false && (
-            <span className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold text-white">
-              Matches you
-            </span>
           )}
-        </div>
-      </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        <p className="text-xs font-semibold text-slate-400">
-          {scholarship.provider ||
-            "Scholarship Provider"}
-        </p>
+        {/* ==================================================
+            SCHOLARSHIP GRID
+        ================================================== */}
 
-        <Link
-          to={`/scholarships/${id}`}
-          className="mt-1"
-        >
-          <h3 className="line-clamp-2 text-lg font-black leading-6 text-slate-900 transition group-hover:text-indigo-600">
-            {scholarship.name ||
-              scholarship.title ||
-              "Scholarship"}
-          </h3>
-        </Link>
+        {!loading &&
+          displayedScholarships.length >
+            0 && (
+            <>
+              <div
+                ref={gridRef}
+                className="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
+              >
+                {displayedScholarships.map(
+                  (scholarship) => {
+                    const id =
+                      scholarship?._id ||
+                      scholarship?.id;
 
-        <p className="mt-3 line-clamp-2 text-sm leading-5 text-slate-500">
-          {scholarship.description ||
-            "Scholarship opportunity for eligible students."}
-        </p>
+                    if (!id) {
+                      return null;
+                    }
 
-        <div className="mt-5 space-y-3">
-          <InfoRow
-            icon={IndianRupee}
-            label="Benefit"
-            value={
-              typeof benefit ===
-              "number"
-                ? `₹${benefit.toLocaleString(
-                    "en-IN"
-                  )}`
-                : benefit
-            }
-            iconClass="text-emerald-500"
-          />
+                    return (
+                      <ScholarshipCard
+                        key={id}
+                        scholarship={
+                          scholarship
+                        }
+                        isSaved={isScholarshipSaved(
+                          id
+                        )}
+                        onSave={() =>
+                          handleSave(
+                            scholarship
+                          )
+                        }
+                        onView={() =>
+                          navigate(
+                            `/scholarships/${id}`
+                          )
+                        }
+                      />
+                    );
+                  }
+                )}
+              </div>
 
-          <InfoRow
-            icon={MapPin}
-            label="Location"
-            value={state}
-            iconClass="text-blue-500"
-          />
+              {/* ==================================================
+                  PAGINATION
+              ================================================== */}
 
-          <InfoRow
-            icon={CalendarDays}
-            label="Deadline"
-            value={formatDate(deadline)}
-            iconClass="text-purple-500"
-          />
-        </div>
+              {!savedOnly &&
+                totalPages > 1 && (
+                  <div className="mt-10 flex items-center justify-center gap-2">
 
-        <div className="mt-auto pt-5">
-          <div className="mb-4 flex items-center justify-between">
-            <span
-              className={`rounded-full px-3 py-1.5 text-[10px] font-bold ${deadlineStatus.className}`}
-            >
-              {deadlineStatus.label}
-            </span>
+                    {/* Previous */}
 
-            {scholarship.type && (
-              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                {scholarship.type}
-              </span>
-            )}
-          </div>
+                    <button
+                      type="button"
+                      disabled={
+                        page === 1 ||
+                        loading
+                      }
+                      onClick={() =>
+                        handlePageChange(
+                          page - 1
+                        )
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronLeft
+                        size={18}
+                      />
+                    </button>
 
-          <Link
-            to={`/scholarships/${id}`}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-indigo-600"
-          >
-            View Details
-            <ExternalLink size={15} />
-          </Link>
-        </div>
-      </div>
-    </article>
-  );
-}
+                    {/* Page Numbers */}
 
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-  iconClass,
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <Icon
-        size={16}
-        className={`shrink-0 ${iconClass}`}
-      />
+                    {Array.from(
+                      {
+                        length:
+                          Math.min(
+                            totalPages,
+                            5
+                          ),
+                      },
+                      (_, index) => {
+                        let pageNumber =
+                          index + 1;
 
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-          {label}
-        </p>
+                        if (
+                          totalPages >
+                          5
+                        ) {
+                          if (
+                            page <= 3
+                          ) {
+                            pageNumber =
+                              index + 1;
+                          } else if (
+                            page >=
+                            totalPages -
+                              2
+                          ) {
+                            pageNumber =
+                              totalPages -
+                              4 +
+                              index;
+                          } else {
+                            pageNumber =
+                              page -
+                              2 +
+                              index;
+                          }
+                        }
 
-        <p className="truncate text-xs font-bold text-slate-700">
-          {value || "Not specified"}
-        </p>
-      </div>
-    </div>
-  );
-}
+                        return (
+                          <button
+                            key={
+                              pageNumber
+                            }
+                            type="button"
+                            onClick={() =>
+                              handlePageChange(
+                                pageNumber
+                              )
+                            }
+                            disabled={loading}
+                            className={`h-10 min-w-10 rounded-lg px-3 text-sm font-semibold transition ${
+                              page ===
+                              pageNumber
+                                ? "bg-blue-600 text-white"
+                                : "border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            {
+                              pageNumber
+                            }
+                          </button>
+                        );
+                      }
+                    )}
 
-/* -------------------------------------------------
-   Loading
-------------------------------------------------- */
+                    {/* Next */}
 
-function ScholarshipLoading() {
-  return (
-    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {[1, 2, 3, 4, 5, 6].map(
-        (item) => (
-          <div
-            key={item}
-            className="overflow-hidden rounded-3xl border border-slate-200 bg-white"
-          >
-            <div className="h-40 animate-pulse bg-slate-100" />
+                    <button
+                      type="button"
+                      disabled={
+                        page ===
+                          totalPages ||
+                        loading
+                      }
+                      onClick={() =>
+                        handlePageChange(
+                          page + 1
+                        )
+                      }
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <ChevronRight
+                        size={18}
+                      />
+                    </button>
+                  </div>
+                )}
+            </>
+          )}
 
-            <div className="space-y-4 p-5">
-              <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
-              <div className="h-5 w-3/4 animate-pulse rounded bg-slate-100" />
-              <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+        {/* ==================================================
+            INFORMATION
+        ================================================== */}
+
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+
+          {/* Personalized Matching */}
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+              <Sparkles size={19} />
             </div>
+
+            <h3 className="font-semibold">
+              Personalized Matching
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Your profile information
+              helps identify scholarships
+              that fit your eligibility.
+            </p>
           </div>
-        )
-      )}
-    </div>
-  );
-}
 
-/* -------------------------------------------------
-   Empty
-------------------------------------------------- */
+          {/* Track Deadlines */}
 
-function EmptyState({
-  clearFilters,
-}) {
-  return (
-    <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-500">
-        <Search size={28} />
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <CalendarDays size={19} />
+            </div>
+
+            <h3 className="font-semibold">
+              Track Deadlines
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Keep an eye on upcoming
+              scholarship deadlines so you
+              do not miss opportunities.
+            </p>
+          </div>
+
+          {/* Save Opportunities */}
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+              <Bookmark size={19} />
+            </div>
+
+            <h3 className="font-semibold">
+              Save Opportunities
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Save interesting scholarships
+              and review them later before
+              applying.
+            </p>
+          </div>
+
+        </div>
       </div>
-
-      <h3 className="mt-5 text-lg font-black text-slate-900">
-        No scholarships found
-      </h3>
-
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-        Try changing your search or filters. You can also browse
-        all available scholarships instead of only the ones
-        matching your profile.
-      </p>
-
-      <button
-        type="button"
-        onClick={clearFilters}
-        className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-700"
-      >
-        Clear Search & Filters
-      </button>
     </div>
   );
-}
-
-/* -------------------------------------------------
-   Helpers
-------------------------------------------------- */
-
-function matchesValue(
-  source,
-  target
-) {
-  if (!source) return false;
-
-  if (Array.isArray(source)) {
-    return source.some(
-      (item) =>
-        String(item).toLowerCase() ===
-        String(target).toLowerCase()
-    );
-  }
-
-  return (
-    String(source).toLowerCase() ===
-    String(target).toLowerCase()
-  );
-}
-
-function matchesIncome(
-  scholarship,
-  selected
-) {
-  const amount =
-    parseIncome(selected);
-
-  if (!amount) return true;
-
-  const limit =
-    scholarship.incomeLimit ||
-    scholarship.eligibility
-      ?.maxIncome ||
-    scholarship.eligibility
-      ?.incomeLimit;
-
-  if (!limit) return true;
-
-  return Number(limit) <= amount;
-}
-
-function matchesAcademicRequirement(
-  scholarship,
-  selected
-) {
-  const requirement =
-    parseFloat(selected);
-
-  if (Number.isNaN(requirement)) {
-    return true;
-  }
-
-  const minimum =
-    scholarship.minimumPercentage ||
-    scholarship.minPercentage ||
-    scholarship.eligibility
-      ?.minimumPercentage ||
-    scholarship.eligibility
-      ?.minPercentage;
-
-  if (!minimum) return true;
-
-  return Number(minimum) >=
-    requirement;
-}
-
-function parseIncome(value) {
-  if (!value) return null;
-
-  const match = String(value).match(
-    /[\d.]+/
-  );
-
-  if (!match) return null;
-
-  const number = Number(match[0]);
-
-  if (String(value).includes("Lakh")) {
-    return number * 100000;
-  }
-
-  return number;
-}
+};
 
 export default Scholarships;

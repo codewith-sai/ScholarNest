@@ -1,155 +1,190 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+} from "react-router-dom";
 
-// Public pages
-import Landing from "./pages/LandingPage";
+// ==========================================
+// Context Providers
+// ==========================================
+
+import { AppProvider } from "./context/AppContext";
+import { ProfileProvider } from "./context/ProfileContext";
+import { ScholarshipProvider } from "./context/ScholarshipContext";
+import { ApplicationProvider } from "./context/ApplicationContext";
+import { NotificationProvider } from "./context/NotificationContext";
+import { MessageProvider } from "./context/MessageContext";
+
+// ==========================================
+// Layout
+// ==========================================
+
+import Layout from "./components/layout/Layout";
+
+// ==========================================
+// Pages
+// ==========================================
+
+import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
-
-// Student pages
-import Dashboard from "./pages/DashboardPage";
-import Profile from "./pages/Profile";
 import CompleteProfile from "./pages/CompleteProfile";
-import Scholarships from "./pages/Scholarships";
-import ScholarshipDetail from "./pages/ScholarshipDetailPage";
-import BasicPages from "./pages/BasicPages";
 
-// Admin
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import Scholarships from "./pages/Scholarships";
+import ScholarshipDetails from "./pages/ScholarshipDetails";
+import SavedScholarships from "./pages/SavedScholarships";
+import Applications from "./pages/Applications";
+import Notifications from "./pages/Notifications";
+import Messages from "./pages/Messages";
+import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 
-// Layout / protection
-import Layout from "./layouts/Layout";
-import ProtectedRoute from "./components/ProtectedRoute";
+// ============================================================
+// PROTECTED APPLICATION PROVIDERS
+// ============================================================
 
-function App() {
+const ApplicationProviders = () => {
   return (
-    <Routes>
-      {/* =====================================================
-          PUBLIC ROUTES
-          ===================================================== */}
+    <ProfileProvider>
+      <ScholarshipProvider>
+        <ApplicationProvider>
+          <NotificationProvider>
+            <MessageProvider>
+              <Layout />
+            </MessageProvider>
+          </NotificationProvider>
+        </ApplicationProvider>
+      </ScholarshipProvider>
+    </ProfileProvider>
+  );
+};
 
-      <Route path="/" element={<Landing />} />
+// ============================================================
+// APP
+// ============================================================
 
-      <Route
-        path="/login"
-        element={<Auth mode="login" />}
-      />
+const App = () => {
+  return (
+    <BrowserRouter>
+      <AppProvider>
+        <Routes>
 
-      <Route
-        path="/register"
-        element={<Auth mode="register" />}
-      />
-
-      {/* =====================================================
-          STUDENT ROUTES
-          ===================================================== */}
-
-      <Route element={<ProtectedRoute role="STUDENT" />}>
-        <Route element={<Layout />}>
+          {/* ==================================================
+              PUBLIC ROUTES
+          ================================================== */}
 
           <Route
-            path="/dashboard"
-            element={<Dashboard />}
+            path="/"
+            element={<Landing />}
           />
 
-          {/* Complete profile */}
+          <Route
+            path="/login"
+            element={<Auth mode="login" />}
+          />
+
+          <Route
+            path="/register"
+            element={<Auth mode="register" />}
+          />
+
           <Route
             path="/complete-profile"
             element={<CompleteProfile />}
           />
 
-          {/* Keep this route as an alias */}
+          {/* ==================================================
+              APPLICATION ROUTES
+          ================================================== */}
+
+          <Route element={<ApplicationProviders />}>
+
+            {/* Dashboard */}
+            <Route
+              path="/dashboard"
+              element={<Dashboard />}
+            />
+
+            {/* Profile */}
+            <Route
+              path="/profile"
+              element={<Profile />}
+            />
+
+            {/* Scholarships */}
+            <Route
+              path="/scholarships"
+              element={<Scholarships />}
+            />
+
+            {/* Scholarship Details */}
+            <Route
+              path="/scholarships/:id"
+              element={<ScholarshipDetails />}
+            />
+
+            {/* Saved Scholarships */}
+            <Route
+              path="/saved-scholarships"
+              element={<SavedScholarships />}
+            />
+
+            {/* Applications */}
+            <Route
+              path="/applications"
+              element={<Applications />}
+            />
+
+            {/* Notifications */}
+            <Route
+              path="/notifications"
+              element={<Notifications />}
+            />
+
+            {/* Messages */}
+            <Route
+              path="/messages"
+              element={<Messages />}
+            />
+
+            {/* Settings */}
+            <Route
+              path="/settings"
+              element={<Settings />}
+            />
+
+            {/* ==================================================
+                ADMIN DASHBOARD
+            ================================================== */}
+
+            <Route
+              path="/admin"
+              element={<Admin />}
+            />
+
+          </Route>
+
+          {/* ==================================================
+              UNKNOWN ROUTE
+          ================================================== */}
+
           <Route
-            path="/profile/complete"
-            element={<CompleteProfile />}
+            path="*"
+            element={
+              <Navigate
+                to="/login"
+                replace
+              />
+            }
           />
 
-          {/* Student profile */}
-          <Route
-            path="/profile"
-            element={<Profile />}
-          />
-
-          <Route
-            path="/profile/edit"
-            element={<Profile edit />}
-          />
-
-          {/* Scholarships */}
-          <Route
-            path="/scholarships"
-            element={<Scholarships />}
-          />
-
-          <Route
-            path="/scholarships/:id"
-            element={<ScholarshipDetail />}
-          />
-
-          {/* Saved scholarships */}
-          <Route
-            path="/saved"
-            element={<BasicPages page="saved" />}
-          />
-
-          {/* Applications */}
-          <Route
-            path="/applications"
-            element={<BasicPages page="applications" />}
-          />
-
-          {/* Notifications */}
-          <Route
-            path="/notifications"
-            element={<BasicPages page="notifications" />}
-          />
-
-          {/* Settings */}
-          <Route
-            path="/settings"
-            element={<BasicPages page="settings" />}
-          />
-
-        </Route>
-      </Route>
-
-      {/* =====================================================
-          ADMIN ROUTES
-          ===================================================== */}
-
-      <Route element={<ProtectedRoute role="ADMIN" />}>
-
-        <Route
-          path="/admin/dashboard"
-          element={<Admin page="dashboard" />}
-        />
-
-        <Route
-          path="/admin/scholarships"
-          element={<Admin page="scholarships" />}
-        />
-
-        <Route
-          path="/admin/scholarships/new"
-          element={<Admin page="new-scholarship" />}
-        />
-
-        <Route
-          path="/admin/students"
-          element={<Admin page="students" />}
-        />
-
-      </Route>
-
-      {/* =====================================================
-          FALLBACK
-          ===================================================== */}
-
-      <Route
-        path="*"
-        element={<Navigate to="/" replace />}
-      />
-
-    </Routes>
+        </Routes>
+      </AppProvider>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
