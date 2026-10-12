@@ -11,6 +11,7 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 
 const Auth = ({ mode = "login" }) => {
   const isLogin = mode === "login";
@@ -100,7 +101,7 @@ const Auth = ({ mode = "login" }) => {
           return;
         }
 
-        if (loggedInUser?.profileCompleted) {
+        if (loggedInUser?.profileCompleted || loggedInUser?.profile?.profileCompleted) {
           navigate(from, { replace: true });
         } else {
           navigate("/complete-profile", { replace: true });

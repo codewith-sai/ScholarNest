@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   CalendarDays,
@@ -23,7 +23,9 @@ const AdminScholarshipsPage = () => {
   const [scholarships, setScholarships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
+  const confirmTimeoutRef = useRef(null);
 
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -134,22 +136,32 @@ const AdminScholarshipsPage = () => {
   };
 
   const handleDelete = async (scholarship) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${scholarship.name}"?`
-    );
+    const id = scholarship._id || scholarship.id;
 
-    if (!confirmed) return;
+    // First click: activate confirmation state (user clicks second time to delete)
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id);
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = setTimeout(() => {
+        setConfirmDeleteId(null);
+      }, 5000);
+      return;
+    }
+
+    // Second click: permanently delete the scholarship
+    if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    setConfirmDeleteId(null);
 
     try {
-      setDeletingId(scholarship._id);
+      setDeletingId(id);
 
       await api.delete(
-        `/admin/scholarships/${scholarship._id}`
+        `/admin/scholarships/${id}`
       );
 
       setScholarships((current) =>
         current.filter(
-          (item) => item._id !== scholarship._id
+          (item) => (item._id || item.id) !== id
         )
       );
 
@@ -170,14 +182,15 @@ const AdminScholarshipsPage = () => {
   };
 
   const handleToggleStatus = async (scholarship) => {
+    const id = scholarship._id || scholarship.id;
     try {
-      setTogglingId(scholarship._id);
+      setTogglingId(id);
 
       const nextStatus =
         scholarship.isActive === false;
 
       const response = await api.put(
-        `/admin/scholarships/${scholarship._id}`,
+        `/admin/scholarships/${id}`,
         {
           isActive: nextStatus,
         }
@@ -190,7 +203,7 @@ const AdminScholarshipsPage = () => {
 
       setScholarships((current) =>
         current.map((item) =>
-          item._id === scholarship._id
+          (item._id || item.id) === id
             ? {
                 ...item,
                 ...(updated || {}),
@@ -510,7 +523,7 @@ const AdminScholarshipsPage = () => {
 
                       return (
                         <tr
-                          key={scholarship._id}
+                          key={scholarship._id || scholarship.id}
                           className="border-b border-slate-100 transition hover:bg-slate-50"
                         >
                           <td className="px-5 py-4">
@@ -582,7 +595,7 @@ const AdminScholarshipsPage = () => {
                           <td className="px-5 py-4">
                             <div className="flex justify-end gap-2">
                               <Link
-                                to={`/scholarships/${scholarship._id}`}
+                                to={`/scholarships/${scholarship._id || scholarship.id}`}
                                 title="View"
                                 className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
                               >
@@ -590,7 +603,7 @@ const AdminScholarshipsPage = () => {
                               </Link>
 
                               <Link
-                                to={`/admin/scholarships/${scholarship._id}/edit`}
+                                to={`/admin/scholarships/${scholarship._id || scholarship.id}/edit`}
                                 title="Edit"
                                 className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                               >
@@ -605,8 +618,7 @@ const AdminScholarshipsPage = () => {
                                     : "Activate"
                                 }
                                 disabled={
-                                  togglingId ===
-                                  scholarship._id
+                                  togglingId === (scholarship._id || scholarship.id)
                                 }
                                 onClick={() =>
                                   handleToggleStatus(
@@ -615,8 +627,7 @@ const AdminScholarshipsPage = () => {
                                 }
                                 className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600 disabled:opacity-50"
                               >
-                                {togglingId ===
-                                scholarship._id ? (
+                                {togglingId === (scholarship._id || scholarship.id) ? (
                                   <Loader2
                                     size={16}
                                     className="animate-spin"
@@ -634,28 +645,39 @@ const AdminScholarshipsPage = () => {
 
                               <button
                                 type="button"
-                                title="Delete"
+                                title={
+                                  confirmDeleteId === (scholarship._id || scholarship.id)
+                                    ? "Click again to permanently delete"
+                                    : "Delete scholarship"
+                                }
                                 disabled={
-                                  deletingId ===
-                                  scholarship._id
+                                  deletingId === (scholarship._id || scholarship.id)
                                 }
                                 onClick={() =>
                                   handleDelete(
                                     scholarship
                                   )
                                 }
-                                className="rounded-lg border border-slate-200 p-2 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                className={`rounded-lg border p-2 transition disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold ${
+                                  confirmDeleteId === (scholarship._id || scholarship.id)
+                                    ? "border-red-600 bg-red-600 text-white shadow-md hover:bg-red-700 animate-pulse"
+                                    : "border-slate-200 text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                }`}
                               >
-                                {deletingId ===
-                                scholarship._id ? (
+                                {deletingId === (scholarship._id || scholarship.id) ? (
                                   <Loader2
                                     size={16}
                                     className="animate-spin"
                                   />
                                 ) : (
-                                  <Trash2
-                                    size={16}
-                                  />
+                                  <>
+                                    <Trash2
+                                      size={16}
+                                    />
+                                    {confirmDeleteId === (scholarship._id || scholarship.id) && (
+                                      <span className="whitespace-nowrap pr-1 text-[11px]">Confirm?</span>
+                                    )}
+                                  </>
                                 )}
                               </button>
                             </div>
@@ -747,7 +769,7 @@ const AdminScholarshipsPage = () => {
 
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Link
-                          to={`/scholarships/${scholarship._id}`}
+                          to={`/scholarships/${scholarship._id || scholarship.id}`}
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
                         >
                           <Eye size={14} />
@@ -755,7 +777,7 @@ const AdminScholarshipsPage = () => {
                         </Link>
 
                         <Link
-                          to={`/admin/scholarships/${scholarship._id}/edit`}
+                          to={`/admin/scholarships/${scholarship._id || scholarship.id}/edit`}
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-100"
                         >
                           <Edit3 size={14} />
@@ -766,7 +788,7 @@ const AdminScholarshipsPage = () => {
                           type="button"
                           disabled={
                             togglingId ===
-                            scholarship._id
+                            (scholarship._id || scholarship.id)
                           }
                           onClick={() =>
                             handleToggleStatus(
@@ -775,8 +797,7 @@ const AdminScholarshipsPage = () => {
                           }
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
                         >
-                          {togglingId ===
-                          scholarship._id ? (
+                          {togglingId === (scholarship._id || scholarship.id) ? (
                             <Loader2
                               size={14}
                               className="animate-spin"
@@ -799,18 +820,20 @@ const AdminScholarshipsPage = () => {
                         <button
                           type="button"
                           disabled={
-                            deletingId ===
-                            scholarship._id
+                            deletingId === (scholarship._id || scholarship.id)
                           }
                           onClick={() =>
                             handleDelete(
                               scholarship
                             )
                           }
-                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
+                          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition disabled:opacity-50 ${
+                            confirmDeleteId === (scholarship._id || scholarship.id)
+                              ? "border-red-600 bg-red-600 text-white shadow-md hover:bg-red-700 animate-pulse"
+                              : "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                          }`}
                         >
-                          {deletingId ===
-                          scholarship._id ? (
+                          {deletingId === (scholarship._id || scholarship.id) ? (
                             <Loader2
                               size={14}
                               className="animate-spin"
@@ -819,7 +842,9 @@ const AdminScholarshipsPage = () => {
                             <Trash2 size={14} />
                           )}
 
-                          Delete
+                          {confirmDeleteId === (scholarship._id || scholarship.id)
+                            ? "Click to Confirm"
+                            : "Delete"}
                         </button>
                       </div>
                     </div>

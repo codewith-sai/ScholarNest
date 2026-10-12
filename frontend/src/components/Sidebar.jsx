@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   GraduationCap,
@@ -14,12 +15,18 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 
 const Sidebar = ({
-  activeItem = "Dashboard",
+  activeItem,
   onNavigate,
   onLogout,
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -48,7 +55,7 @@ const Sidebar = ({
       name: "Notifications",
       icon: Bell,
       path: "/notifications",
-      badge: 3,
+      badge: unreadCount > 0 ? unreadCount : undefined,
     },
   ];
 
@@ -69,7 +76,7 @@ const Sidebar = ({
     if (onNavigate) {
       onNavigate(item);
     } else {
-      window.location.href = item.path;
+      navigate(item.path);
     }
 
     setIsOpen(false);
@@ -78,12 +85,14 @@ const Sidebar = ({
   const handleLogout = () => {
     if (onLogout) {
       onLogout();
+    } else {
+      logout();
     }
   };
 
   const renderItem = (item) => {
     const Icon = item.icon;
-    const isActive = activeItem === item.name;
+    const isActive = activeItem ? activeItem === item.name : location.pathname === item.path;
 
     return (
       <button

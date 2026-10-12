@@ -7,11 +7,13 @@ import {
   GraduationCap,
   IndianRupee,
   MapPin,
+  Sparkles,
   User,
   Users,
   Wallet,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 
 const steps = [
@@ -51,8 +53,9 @@ const initialForm = {
   fullName: "",
   dob: "",
   gender: "",
-  state: "",
+  state: "Maharashtra",
   district: "",
+  taluka: "",
   city: "",
   areaType: "",
 
@@ -74,14 +77,32 @@ const initialForm = {
   previousPercentage: "",
   currentCGPA: "",
 
-  domicileState: "",
+  domicileState: "Maharashtra",
   specialEligibility: "",
 };
 
 const inputClass =
   "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100";
 
-const labelClass = "mb-2 block text-sm font-semibold text-slate-700";
+const labelClass =
+  "mb-2 block text-sm font-semibold text-slate-700";
+
+const formatAcademicYear = (val) => {
+  if (val === null || val === undefined || val === "") return "";
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.toLowerCase() === "other") return "Other";
+    if (trimmed.toLowerCase().includes("year")) return trimmed;
+  }
+  const num = typeof val === "number" ? val : parseInt(String(val).match(/\d+/)?.[0] || "", 10);
+  if (num === 1) return "1st Year";
+  if (num === 2) return "2nd Year";
+  if (num === 3) return "3rd Year";
+  if (num === 4) return "4th Year";
+  if (num === 5) return "5th Year";
+  if (isNaN(num)) return String(val);
+  return `${num}th Year`;
+};
 
 const SelectField = ({
   label,
@@ -101,7 +122,7 @@ const SelectField = ({
     <select
       id={name}
       name={name}
-      value={value}
+      value={value ?? ""}
       onChange={onChange}
       required={required}
       className={inputClass}
@@ -139,7 +160,7 @@ const TextField = ({
       id={name}
       name={name}
       type={type}
-      value={value}
+      value={value ?? ""}
       onChange={onChange}
       placeholder={placeholder}
       required={required}
@@ -161,19 +182,81 @@ const CompleteProfile = () => {
 
   useEffect(() => {
     if (user?.profile) {
+      const p = user.profile;
       setForm((current) => ({
         ...current,
-        ...user.profile,
+        fullName: p.fullName || user.fullName || user.name || current.fullName || "",
+        dob: p.dob || (p.dateOfBirth ? new Date(p.dateOfBirth).toISOString().slice(0, 10) : "") || current.dob || "",
+        gender: p.gender || current.gender || "",
+        state: p.state || current.state || "Maharashtra",
+        district: p.district || current.district || "",
+        taluka: p.taluka || current.taluka || "",
+        city: p.city || current.city || "",
+        areaType: p.areaType || current.areaType || "",
+        category: p.category || current.category || "",
+        casteCommunity: p.casteCommunity || current.casteCommunity || "",
+        minority: p.minority || (p.minorityStatus ? "Yes" : (p.minorityStatus === false ? "No" : "")) || current.minority || "",
+        disability: p.disability || (p.disabilityStatus ? "Yes" : (p.disabilityStatus === false ? "No" : "")) || current.disability || "",
+        disabilityType: p.disabilityType || current.disabilityType || "",
+        annualFamilyIncome: p.annualFamilyIncome ?? p.annualIncome ?? current.annualFamilyIncome ?? "",
+        incomeCertificate:
+          p.incomeCertificate === true || p.incomeCertificate === "Yes" || p.incomeCertificate === "Available"
+            ? "Available"
+            : p.incomeCertificate === false || p.incomeCertificate === "No" || p.incomeCertificate === "Not Available"
+            ? "Not Available"
+            : (p.incomeCertificate || current.incomeCertificate || ""),
+        parentOccupation: p.parentOccupation || current.parentOccupation || "",
+        educationLevel: p.educationLevel || current.educationLevel || "",
+        institution: p.institution || p.college || current.institution || "",
+        course: p.course || current.course || "",
+        branch: p.branch || current.branch || "",
+        academicYear: formatAcademicYear(p.academicYear) || current.academicYear || "",
+        previousPercentage: p.previousPercentage ?? p.percentage ?? current.previousPercentage ?? "",
+        currentCGPA: p.currentCGPA ?? p.cgpa ?? current.currentCGPA ?? "",
+        domicileState: p.domicileState || p.state || current.domicileState || "Maharashtra",
+        specialEligibility: p.specialEligibility || current.specialEligibility || "",
       }));
-    }
-
-    if (user?.fullName && !user.profile?.fullName) {
+    } else if (user?.fullName || user?.name) {
       setForm((current) => ({
         ...current,
-        fullName: user.fullName,
+        fullName: user.fullName || user.name || current.fullName || "",
+        state: current.state || "Maharashtra",
+        domicileState: current.domicileState || "Maharashtra",
       }));
     }
   }, [user]);
+
+  const handleAutoFillSample = () => {
+    const studentName = user?.name || user?.fullName || form.fullName || "Student Name";
+    setForm({
+      fullName: studentName,
+      dob: form.dob || "2005-06-15",
+      gender: form.gender || "Male",
+      state: "Maharashtra",
+      district: form.district || "Pune",
+      taluka: form.taluka || "Haveli",
+      city: form.city || "Pune",
+      areaType: form.areaType || "Urban",
+      category: form.category || "OBC",
+      casteCommunity: form.casteCommunity || "Kunbi",
+      minority: form.minority || "No",
+      disability: form.disability || "No",
+      disabilityType: "",
+      annualFamilyIncome: form.annualFamilyIncome || 220000,
+      incomeCertificate: "Available",
+      parentOccupation: form.parentOccupation || "Agriculture / Farming",
+      educationLevel: form.educationLevel || "Undergraduate",
+      institution: form.institution || "Government College of Engineering, Pune (COEP)",
+      course: form.course || "B.Tech / Engineering",
+      branch: form.branch || "Computer Science",
+      academicYear: form.academicYear || "2nd Year",
+      previousPercentage: form.previousPercentage || 85.5,
+      currentCGPA: form.currentCGPA || 8.6,
+      domicileState: "Maharashtra",
+      specialEligibility: "None",
+    });
+    toast.success("Automatically added personal and academic matching details!");
+  };
 
   const progress = useMemo(
     () => Math.round((currentStep / steps.length) * 100),
@@ -191,7 +274,7 @@ const CompleteProfile = () => {
 
   const validateStep = () => {
     if (currentStep === 1) {
-      if (!form.fullName.trim()) {
+      if (!String(form.fullName || "").trim()) {
         toast.error("Please enter your full name.");
         return false;
       }
@@ -211,12 +294,12 @@ const CompleteProfile = () => {
         return false;
       }
 
-      if (!form.district.trim()) {
+      if (!String(form.district || "").trim()) {
         toast.error("Please enter your district.");
         return false;
       }
 
-      if (!form.city.trim()) {
+      if (!String(form.city || "").trim()) {
         toast.error("Please enter your city/town/village.");
         return false;
       }
@@ -242,6 +325,8 @@ const CompleteProfile = () => {
     if (currentStep === 3) {
       if (
         form.annualFamilyIncome === "" ||
+        form.annualFamilyIncome === null ||
+        form.annualFamilyIncome === undefined ||
         Number(form.annualFamilyIncome) < 0
       ) {
         toast.error("Please enter your annual family income.");
@@ -253,7 +338,7 @@ const CompleteProfile = () => {
         return false;
       }
 
-      if (!form.parentOccupation.trim()) {
+      if (!String(form.parentOccupation || "").trim()) {
         toast.error("Please enter the parent/guardian occupation.");
         return false;
       }
@@ -265,12 +350,12 @@ const CompleteProfile = () => {
         return false;
       }
 
-      if (!form.institution.trim()) {
+      if (!String(form.institution || "").trim()) {
         toast.error("Please enter your institution.");
         return false;
       }
 
-      if (!form.course.trim()) {
+      if (!String(form.course || "").trim()) {
         toast.error("Please enter your course.");
         return false;
       }
@@ -282,6 +367,8 @@ const CompleteProfile = () => {
 
       if (
         form.previousPercentage !== "" &&
+        form.previousPercentage !== null &&
+        form.previousPercentage !== undefined &&
         (Number(form.previousPercentage) < 0 ||
           Number(form.previousPercentage) > 100)
       ) {
@@ -291,6 +378,8 @@ const CompleteProfile = () => {
 
       if (
         form.currentCGPA !== "" &&
+        form.currentCGPA !== null &&
+        form.currentCGPA !== undefined &&
         (Number(form.currentCGPA) < 0 || Number(form.currentCGPA) > 10)
       ) {
         toast.error("CGPA must be between 0 and 10.");
@@ -328,18 +417,53 @@ const CompleteProfile = () => {
     setLoading(true);
 
     try {
+      const parsedYear = form.academicYear
+        ? parseInt(String(form.academicYear).match(/\d+/)?.[0] || "1", 10)
+        : null;
+
       const payload = {
         ...form,
+        college: form.institution,
+        institution: form.institution,
+        annualIncome:
+          form.annualFamilyIncome === "" || form.annualFamilyIncome === null
+            ? null
+            : Number(form.annualFamilyIncome),
         annualFamilyIncome:
-          form.annualFamilyIncome === ""
+          form.annualFamilyIncome === "" || form.annualFamilyIncome === null
             ? null
             : Number(form.annualFamilyIncome),
         previousPercentage:
-          form.previousPercentage === ""
+          form.previousPercentage === "" || form.previousPercentage === null
+            ? null
+            : Number(form.previousPercentage),
+        percentage:
+          form.previousPercentage === "" || form.previousPercentage === null
             ? null
             : Number(form.previousPercentage),
         currentCGPA:
-          form.currentCGPA === "" ? null : Number(form.currentCGPA),
+          form.currentCGPA === "" || form.currentCGPA === null
+            ? null
+            : Number(form.currentCGPA),
+        cgpa:
+          form.currentCGPA === "" || form.currentCGPA === null
+            ? null
+            : Number(form.currentCGPA),
+        academicYear: parsedYear,
+        incomeCertificate:
+          form.incomeCertificate === "Available" ||
+          form.incomeCertificate === "Yes" ||
+          form.incomeCertificate === true ||
+          form.incomeCertificate === "true",
+        minorityStatus:
+          form.minority === "Yes" ||
+          form.minority === true ||
+          form.minority === "true",
+        disabilityStatus:
+          form.disability === "Yes" ||
+          form.disability === true ||
+          form.disability === "true",
+        dateOfBirth: form.dob || null,
         profileCompleted: true,
       };
 
@@ -376,15 +500,26 @@ const CompleteProfile = () => {
       case 1:
         return (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-black text-slate-900">
-                Tell us about yourself
-              </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-slate-900">
+                  Tell us about yourself
+                </h2>
 
-              <p className="mt-1 text-sm text-slate-500">
-                We use these details to identify scholarships with relevant
-                personal and location requirements.
-              </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  We use these details to identify scholarships with relevant
+                  personal and location requirements.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAutoFillSample}
+                className="inline-flex items-center gap-2 self-start rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 shadow-sm"
+              >
+                <Sparkles size={14} />
+                <span>Auto-Fill Details</span>
+              </button>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -397,6 +532,11 @@ const CompleteProfile = () => {
                   placeholder="Enter your full name"
                   required
                 />
+                {user?.email && (
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Registered account email: <span className="font-semibold text-slate-600">{user.email}</span>
+                  </p>
+                )}
               </div>
 
               <TextField
@@ -460,8 +600,16 @@ const CompleteProfile = () => {
                 name="district"
                 value={form.district}
                 onChange={handleChange}
-                placeholder="e.g. Pune"
+                placeholder="e.g. Pune, Chandrapur"
                 required
+              />
+
+              <TextField
+                label="Taluka / Tehsil"
+                name="taluka"
+                value={form.taluka}
+                onChange={handleChange}
+                placeholder="e.g. Haveli, Chandrapur"
               />
 
               <TextField

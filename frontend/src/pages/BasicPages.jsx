@@ -2,15 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
+  ArrowRight,
   Bell,
   BellRing,
   Bookmark,
+  Building,
+  Calendar,
   Check,
   CheckCircle2,
   Clock3,
   ExternalLink,
   FileText,
   GraduationCap,
+  IndianRupee,
   LogOut,
   Mail,
   Save,
@@ -20,6 +24,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 import api from "../services/api";
 
 const APPLICATION_STATUSES = [
@@ -58,10 +64,6 @@ function SavedScholarships() {
   const [saved, setSaved] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadSaved();
-  }, []);
-
   const loadSaved = async () => {
     try {
       const response = await api.get("/saved");
@@ -81,6 +83,10 @@ function SavedScholarships() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadSaved();
+  }, []);
 
   const removeSaved = async (id) => {
     try {
@@ -520,55 +526,40 @@ function ApplicationCard({
 ========================================================= */
 
 function Notifications() {
-  const [notifications, setNotifications] =
-    useState([]);
+  const { fetchNotifications: refreshGlobalNotifs } = useNotifications();
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const loadNotifications =
-    async () => {
-      try {
-        const response =
-          await api.get("/notifications");
-
-        setNotifications(
-          response.data.notifications ||
-            response.data ||
-            []
-        );
-      } catch (error) {
-        console.error(error);
-
-        toast.error(
-          "Unable to load notifications."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadNotifications = async () => {
+    try {
+      const response = await api.get("/notifications");
+      setNotifications(
+        response.data.notifications ||
+          response.data ||
+          []
+      );
+      if (refreshGlobalNotifs) refreshGlobalNotifs();
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to load notifications.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadNotifications();
   }, []);
 
-  const markRead = async (
-    notification
-  ) => {
-    const id =
-      notification._id ||
-      notification.id;
+  const markRead = async (notification) => {
+    const id = notification._id || notification.id;
 
     try {
-      await api.put(
-        `/notifications/${id}/read`
-      );
+      await api.put(`/notifications/${id}/read`);
 
       setNotifications((current) =>
         current.map((item) =>
-          String(
-            item._id || item.id
-          ) === String(id)
+          String(item._id || item.id) === String(id)
             ? {
                 ...item,
                 read: true,
@@ -577,6 +568,7 @@ function Notifications() {
             : item
         )
       );
+      if (refreshGlobalNotifs) refreshGlobalNotifs();
     } catch (error) {
       console.error(error);
     }
@@ -584,9 +576,7 @@ function Notifications() {
 
   const markAllRead = async () => {
     try {
-      await api.put(
-        "/notifications/read-all"
-      );
+      await api.put("/notifications/read-all");
 
       setNotifications((current) =>
         current.map((item) => ({
@@ -595,23 +585,18 @@ function Notifications() {
           isRead: true,
         }))
       );
+      if (refreshGlobalNotifs) refreshGlobalNotifs();
 
-      toast.success(
-        "All notifications marked as read."
-      );
+      toast.success("All notifications marked as read.");
     } catch (error) {
-      toast.error(
-        "Unable to update notifications."
-      );
+      console.error("Notifications update error:", error);
+      toast.error("Unable to update notifications.");
     }
   };
 
-  const unreadCount =
-    notifications.filter(
-      (notification) =>
-        !notification.read &&
-        !notification.isRead
-    ).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read && !notification.isRead
+  ).length;
 
   return (
     <PageShell
@@ -624,7 +609,7 @@ function Notifications() {
           <button
             type="button"
             onClick={markAllRead}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
           >
             <Check size={15} />
             Mark all as read
@@ -635,16 +620,9 @@ function Notifications() {
       {unreadCount > 0 && (
         <div className="mb-5 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
           <div className="flex items-center gap-3">
-            <BellRing
-              size={19}
-              className="text-indigo-600"
-            />
-
+            <BellRing size={19} className="text-indigo-600" />
             <p className="text-sm font-bold text-indigo-900">
-              You have {unreadCount} unread notification
-              {unreadCount !== 1
-                ? "s"
-                : ""}.
+              You have {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}.
             </p>
           </div>
         </div>
@@ -652,99 +630,181 @@ function Notifications() {
 
       {loading ? (
         <PageLoading />
-      ) : notifications.length ===
-        0 ? (
+      ) : notifications.length === 0 ? (
         <EmptyPage
           icon={Bell}
           title="You're all caught up"
           description="New scholarship and application updates will appear here."
         />
       ) : (
-        <div className="space-y-3">
-          {notifications.map(
-            (notification) => (
-              <NotificationCard
-                key={
-                  notification._id ||
-                  notification.id
-                }
-                notification={notification}
-                onRead={markRead}
-              />
-            )
-          )}
+        <div className="space-y-4">
+          {notifications.map((notification) => (
+            <NotificationCard
+              key={notification._id || notification.id}
+              notification={notification}
+              onRead={markRead}
+            />
+          ))}
         </div>
       )}
     </PageShell>
   );
 }
 
-function NotificationCard({
-  notification,
-  onRead,
-}) {
-  const isRead =
-    notification.read ||
-    notification.isRead;
+function NotificationCard({ notification, onRead }) {
+  const isRead = notification.read || notification.isRead;
+  const type = notification.type || "general";
+  const config = getNotificationConfig(type);
 
-  const type =
-    notification.type ||
-    "general";
+  // Extract rich scholarship details if present
+  let metadata = notification.metadata;
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = null;
+    }
+  }
 
-  const config =
-    getNotificationConfig(type);
+  const scholarshipId = notification.scholarshipId || metadata?.scholarshipId;
+  const scholarshipName = notification.scholarshipName || metadata?.scholarshipName;
+  const department =
+    notification.governmentDepartment ||
+    notification.provider ||
+    metadata?.department ||
+    metadata?.provider;
+  const amount = notification.amount || metadata?.amount;
+  const benefits = notification.benefitsSummary || metadata?.benefits;
+  const deadline = notification.deadline || metadata?.deadline;
+  const mahadbtUrl =
+    notification.actionUrl ||
+    notification.scholarshipApplicationUrl ||
+    metadata?.mahadbtUrl ||
+    "https://mahadbt.maharashtra.gov.in/";
+
+  const hasScholarshipInfo = Boolean(scholarshipId || scholarshipName || benefits || deadline);
 
   return (
-    <button
-      type="button"
-      onClick={() =>
-        !isRead &&
-        onRead(notification)
-      }
-      className={`w-full rounded-2xl border p-4 text-left transition ${
+    <article
+      className={`w-full rounded-2xl border p-5 transition-all ${
         isRead
           ? "border-slate-200 bg-white"
-          : "border-indigo-100 bg-indigo-50/50 shadow-sm"
+          : "border-indigo-200 bg-indigo-50/40 shadow-sm"
       }`}
     >
-      <div className="flex gap-4">
+      <div className="flex items-start gap-4">
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${config.className}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-xs ${config.className}`}
         >
-          <config.icon size={18} />
+          <config.icon size={20} />
         </div>
 
         <div className="min-w-0 flex-1">
+          {/* Header Row */}
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-sm font-extrabold text-slate-800">
-              {notification.title ||
-                getNotificationTitle(
-                  type
-                )}
-            </h3>
-
-            <span className="text-[10px] font-semibold text-slate-400">
-              {formatDateTime(
-                notification.createdAt
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-base font-extrabold text-slate-900">
+                {notification.title || getNotificationTitle(type)}
+              </h3>
+              {!isRead && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                  New
+                </span>
               )}
+            </div>
+
+            <span className="text-xs font-medium text-slate-400">
+              {formatDateTime(notification.createdAt)}
             </span>
           </div>
 
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            {notification.message ||
-              notification.body ||
-              "You have a new ScholarNet notification."}
+          {/* Description / Message */}
+          <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-slate-600">
+            {notification.message || notification.body || "You have a new notification."}
           </p>
 
-          {!isRead && (
-            <div className="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-indigo-600">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
-              Unread
+          {/* Detailed Scholarship Highlight Card */}
+          {hasScholarshipInfo && (
+            <div className="mt-3.5 rounded-xl border border-slate-200/90 bg-slate-50/90 p-4 space-y-2 text-xs">
+              {scholarshipName && (
+                <div className="font-bold text-slate-900 text-sm">
+                  {scholarshipName}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-slate-600">
+                {department && (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Building size={14} className="text-slate-400 shrink-0" />
+                    <span className="truncate">{department}</span>
+                  </div>
+                )}
+
+                {(amount || benefits) && (
+                  <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                    <IndianRupee size={14} className="text-emerald-600 shrink-0" />
+                    <span>
+                      {amount ? `Up to ₹${Number(amount).toLocaleString("en-IN")}` : benefits}
+                    </span>
+                  </div>
+                )}
+
+                {deadline && (
+                  <div className="flex items-center gap-1.5 text-rose-600 font-semibold">
+                    <Calendar size={14} className="text-rose-500 shrink-0" />
+                    <span>Deadline: {formatDate(deadline)}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Action Buttons Row */}
+          <div className="mt-4 flex flex-wrap items-center gap-2.5 pt-1">
+            {/* Direct MahaDBT Official Portal Link */}
+            <a
+              href={mahadbtUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                if (!isRead) onRead(notification);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700 transition"
+            >
+              <span>Apply on MahaDBT Portal</span>
+              <ExternalLink size={13} />
+            </a>
+
+            {/* View Scheme Details on ScholarNest */}
+            {scholarshipId && (
+              <Link
+                to={`/scholarships/${scholarshipId}`}
+                onClick={() => {
+                  if (!isRead) onRead(notification);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 transition"
+              >
+                <span>View Scheme Details</span>
+                <ArrowRight size={13} />
+              </Link>
+            )}
+
+            {/* Mark as read toggle */}
+            {!isRead && (
+              <button
+                type="button"
+                onClick={() => onRead(notification)}
+                className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800 transition py-1 px-2"
+              >
+                <Check size={14} />
+                <span>Mark as read</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </button>
+    </article>
   );
 }
 
@@ -1287,7 +1347,9 @@ function getNotificationConfig(type) {
           "bg-amber-100 text-amber-600",
       };
 
+    case "SCHOLARSHIP":
     case "NEW_SCHOLARSHIP":
+    case "MATCH":
     case "SCHOLARSHIP_MATCH":
       return {
         icon: GraduationCap,
@@ -1325,7 +1387,11 @@ function getNotificationTitle(type) {
     case "DEADLINE_APPROACHING":
       return "Scholarship deadline approaching";
 
+    case "SCHOLARSHIP":
     case "NEW_SCHOLARSHIP":
+      return "New scholarship scheme available";
+
+    case "MATCH":
     case "SCHOLARSHIP_MATCH":
       return "New scholarship match";
 

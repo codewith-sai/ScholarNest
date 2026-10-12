@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import {
   Bell,
-  Check,
   CheckCheck,
   MessageCircle,
   Search,

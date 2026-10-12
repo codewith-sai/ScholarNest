@@ -40,11 +40,6 @@ function Scholarships() {
     new Set()
   );
 
-  useEffect(() => {
-    loadScholarships();
-    loadSavedScholarships();
-  }, [eligibleOnly]);
-
   const loadScholarships = async () => {
     setLoading(true);
 
@@ -77,36 +72,39 @@ function Scholarships() {
     }
   };
 
-  const loadSavedScholarships =
-    async () => {
-      try {
-        const response =
-          await api.get("/saved");
+  const loadSavedScholarships = async () => {
+    try {
+      const response = await api.get("/saved");
 
-        const saved =
-          response.data.saved ||
-          response.data ||
-          [];
+      const saved =
+        response.data.saved ||
+        response.data ||
+        [];
 
-        setSavedIds(
-          new Set(
-            saved.map(
-              (item) =>
-                item.scholarship?._id ||
-                item.scholarship?.id ||
-                item.scholarshipId ||
-                item._id ||
-                item.id
-            )
+      setSavedIds(
+        new Set(
+          saved.map(
+            (item) =>
+              item.scholarship?._id ||
+              item.scholarship?.id ||
+              item.scholarshipId ||
+              item._id ||
+              item.id
           )
-        );
-      } catch (error) {
-        console.error(
-          "Saved scholarships error:",
-          error
-        );
-      }
-    };
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Saved scholarships error:",
+        error
+      );
+    }
+  };
+
+  useEffect(() => {
+    loadScholarships();
+    loadSavedScholarships();
+  }, [eligibleOnly]);
 
   const updateFilter = (
     name,

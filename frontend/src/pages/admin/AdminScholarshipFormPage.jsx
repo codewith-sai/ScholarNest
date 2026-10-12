@@ -1,18 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  Award,
   Save,
   ArrowLeft,
   Plus,
   Trash2,
-  AlertCircle,
-  CheckCircle2,
-  Coins,
-  FileText,
-  Compass,
-  Link as LinkIcon,
 } from 'lucide-react';
+import api from '../../services/api';
 
 export default function AdminScholarshipFormPage() {
   const { id } = useParams();
@@ -101,15 +95,103 @@ export default function AdminScholarshipFormPage() {
       async function loadExisting() {
         try {
           const res = await api.get(`/scholarships/${id}`);
-          if (res.data?.success) {
-            const s = res.data.scholarship;
-            setFormData({
+          if (res.data?.success || res.data?.scholarship || res.data?.id) {
+            const s = res.data.scholarship || res.data;
+
+            // Normalize eligibilityCriteria
+            const rawCriteria = s.eligibilityCriteria || s.eligibility || [];
+            const normalizedCriteria = Array.isArray(rawCriteria)
+              ? rawCriteria.map((r) => {
+                  let vals = r.values;
+                  if (typeof vals === 'string') {
+                    try {
+                      vals = JSON.parse(vals);
+                    } catch (e) {
+                      vals = vals.split(',').map((v) => v.trim()).filter(Boolean);
+                    }
+                  }
+                  return {
+                    field: r.field || 'casteCategory',
+                    operator: r.operator || 'IN',
+                    values: Array.isArray(vals) ? vals : (vals ? [vals] : []),
+                    minValue: r.minValue ?? '',
+                    maxValue: r.maxValue ?? '',
+                    required: r.required !== undefined ? r.required : true,
+                    label: r.label || '',
+                  };
+                })
+              : [];
+
+            // Normalize requiredDocuments
+            const rawDocs = s.requiredDocuments || s.documents || [];
+            const normalizedDocs = Array.isArray(rawDocs)
+              ? rawDocs
+                  .map((d) => (typeof d === 'string' ? d : (d.documentName || d.name || '')))
+                  .filter(Boolean)
+              : [];
+
+            // Normalize benefits object
+            let benefitsObj = {
+              tuitionFee: '',
+              maintenanceAllowance: '',
+              examinationFee: '',
+              hostelAllowance: '',
+              otherBenefits: '',
+              amount: 0,
+            };
+
+            if (s.benefits && typeof s.benefits === 'object') {
+              benefitsObj = {
+                tuitionFee: s.benefits.tuitionFee || s.tuitionFee || '',
+                maintenanceAllowance: s.benefits.maintenanceAllowance || s.maintenanceAllowance || '',
+                examinationFee: s.benefits.examinationFee || '',
+                hostelAllowance: s.benefits.hostelAllowance || s.hostelAllowance || '',
+                otherBenefits: s.benefits.otherBenefits || '',
+                amount: s.benefits.amount !== undefined ? s.benefits.amount : (s.amount || 0),
+              };
+            } else {
+              benefitsObj = {
+                tuitionFee: s.tuitionFee || '',
+                maintenanceAllowance: s.maintenanceAllowance || '',
+                examinationFee: '',
+                hostelAllowance: s.hostelAllowance || '',
+                otherBenefits: typeof s.benefits === 'string' ? s.benefits : '',
+                amount: s.amount || 0,
+              };
+            }
+
+            // Normalize application guidance
+            let guidance = [];
+            if (Array.isArray(s.applicationGuidance) && s.applicationGuidance.length > 0) {
+              guidance = s.applicationGuidance;
+            } else if (s.applicationInstructions) {
+              guidance = s.applicationInstructions
+                .split('\n')
+                .filter(Boolean)
+                .map((line, idx) => ({
+                  stepNumber: idx + 1,
+                  title: `Step ${idx + 1}`,
+                  description: line.replace(/^\d+[.)]\s*/, ''),
+                }));
+            }
+
+            setFormData((prev) => ({
+              ...prev,
               ...s,
+              name: s.name || prev.name,
+              provider: s.provider || prev.provider,
+              department: s.governmentDepartment || s.department || prev.department,
+              officialApplicationUrl: s.applicationUrl || s.officialApplicationUrl || prev.officialApplicationUrl,
               openingDate: s.openingDate ? s.openingDate.split('T')[0] : '',
               deadline: s.deadline ? s.deadline.split('T')[0] : '',
-            });
+              benefits: benefitsObj,
+              eligibilityCriteria: normalizedCriteria.length > 0 ? normalizedCriteria : prev.eligibilityCriteria,
+              requiredDocuments: normalizedDocs.length > 0 ? normalizedDocs : prev.requiredDocuments,
+              applicationGuidance: guidance.length > 0 ? guidance : prev.applicationGuidance,
+            }));
           }
         } catch (e) {
+          console.error('Failed to fetch existing scholarship:', e);
           setError('Failed to fetch existing scholarship.');
         } finally {
           setLoading(false);
@@ -132,7 +214,7 @@ export default function AdminScholarshipFormPage() {
     setFormData((prev) => ({
       ...prev,
       benefits: {
-        ...prev.benefits,
+        ...(typeof prev.benefits === 'object' && prev.benefits !== null ? prev.benefits : {}),
         [name]: name === 'amount' ? Number(value) : value,
       },
     }));
@@ -143,7 +225,7 @@ export default function AdminScholarshipFormPage() {
     setFormData((prev) => ({
       ...prev,
       eligibilityCriteria: [
-        ...prev.eligibilityCriteria,
+        ...(prev.eligibilityCriteria || []),
         {
           field: 'course',
           operator: 'IN',
@@ -158,13 +240,13 @@ export default function AdminScholarshipFormPage() {
   const removeRule = (idx) => {
     setFormData((prev) => ({
       ...prev,
-      eligibilityCriteria: prev.eligibilityCriteria.filter((_, i) => i !== idx),
+      eligibilityCriteria: (prev.eligibilityCriteria || []).filter((_, i) => i !== idx),
     }));
   };
 
   const updateRule = (idx, field, value) => {
     setFormData((prev) => {
-      const updated = [...prev.eligibilityCriteria];
+      const updated = [...(prev.eligibilityCriteria || [])];
       updated[idx] = { ...updated[idx], [field]: value };
       return { ...prev, eligibilityCriteria: updated };
     });
@@ -174,13 +256,13 @@ export default function AdminScholarshipFormPage() {
   const addDocument = () => {
     setFormData((prev) => ({
       ...prev,
-      requiredDocuments: [...prev.requiredDocuments, 'New Required Document'],
+      requiredDocuments: [...(prev.requiredDocuments || []), 'New Required Document'],
     }));
   };
 
   const updateDocument = (idx, value) => {
     setFormData((prev) => {
-      const updated = [...prev.requiredDocuments];
+      const updated = [...(prev.requiredDocuments || [])];
       updated[idx] = value;
       return { ...prev, requiredDocuments: updated };
     });
@@ -189,39 +271,10 @@ export default function AdminScholarshipFormPage() {
   const removeDocument = (idx) => {
     setFormData((prev) => ({
       ...prev,
-      requiredDocuments: prev.requiredDocuments.filter((_, i) => i !== idx),
+      requiredDocuments: (prev.requiredDocuments || []).filter((_, i) => i !== idx),
     }));
   };
 
-  // Guidance Step Helpers
-  const addStep = () => {
-    setFormData((prev) => ({
-      ...prev,
-      applicationGuidance: [
-        ...prev.applicationGuidance,
-        {
-          stepNumber: prev.applicationGuidance.length + 1,
-          title: 'Next Step',
-          description: 'Step instruction details',
-        },
-      ],
-    }));
-  };
-
-  const updateStep = (idx, field, value) => {
-    setFormData((prev) => {
-      const updated = [...prev.applicationGuidance];
-      updated[idx] = { ...updated[idx], [field]: value };
-      return { ...prev, applicationGuidance: updated };
-    });
-  };
-
-  const removeStep = (idx) => {
-    setFormData((prev) => ({
-      ...prev,
-      applicationGuidance: prev.applicationGuidance.filter((_, i) => i !== idx),
-    }));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -229,16 +282,30 @@ export default function AdminScholarshipFormPage() {
     setSubmitting(true);
 
     try {
+      const payload = {
+        ...formData,
+        department: formData.department || formData.governmentDepartment,
+        governmentDepartment: formData.department || formData.governmentDepartment,
+        officialApplicationUrl: formData.officialApplicationUrl || formData.applicationUrl,
+        applicationUrl: formData.officialApplicationUrl || formData.applicationUrl,
+        eligibility: formData.eligibilityCriteria || formData.eligibility || [],
+        eligibilityCriteria: formData.eligibilityCriteria || formData.eligibility || [],
+        documents: formData.requiredDocuments || formData.documents || [],
+        requiredDocuments: formData.requiredDocuments || formData.documents || [],
+      };
+
       if (isEditing) {
-        await api.put(`/admin/scholarships/${id}`, formData);
+        await api.put(`/admin/scholarships/${id}`, payload);
         setSuccess('Scholarship updated successfully!');
       } else {
-        await api.post('/admin/scholarships', formData);
+        await api.post('/admin/scholarships', payload);
         setSuccess('Scholarship created successfully!');
       }
       setTimeout(() => navigate('/admin/scholarships'), 1000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save scholarship.');
+      console.error('Save scholarship error:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to save scholarship.';
+      setError(msg);
       setSubmitting(false);
     }
   };
@@ -438,7 +505,7 @@ export default function AdminScholarshipFormPage() {
               <input
                 type="text"
                 name="tuitionFee"
-                value={formData.benefits.tuitionFee}
+                value={formData.benefits?.tuitionFee ?? ''}
                 onChange={handleBenefitChange}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 outline-hidden"
               />
@@ -449,7 +516,7 @@ export default function AdminScholarshipFormPage() {
               <input
                 type="text"
                 name="maintenanceAllowance"
-                value={formData.benefits.maintenanceAllowance}
+                value={formData.benefits?.maintenanceAllowance ?? ''}
                 onChange={handleBenefitChange}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 outline-hidden"
               />
@@ -460,7 +527,7 @@ export default function AdminScholarshipFormPage() {
               <input
                 type="text"
                 name="examinationFee"
-                value={formData.benefits.examinationFee}
+                value={formData.benefits?.examinationFee ?? ''}
                 onChange={handleBenefitChange}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 outline-hidden"
               />
@@ -471,7 +538,7 @@ export default function AdminScholarshipFormPage() {
               <input
                 type="text"
                 name="hostelAllowance"
-                value={formData.benefits.hostelAllowance}
+                value={formData.benefits?.hostelAllowance ?? ''}
                 onChange={handleBenefitChange}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 outline-hidden"
               />
@@ -482,7 +549,7 @@ export default function AdminScholarshipFormPage() {
               <input
                 type="number"
                 name="amount"
-                value={formData.benefits.amount}
+                value={formData.benefits?.amount ?? ''}
                 onChange={handleBenefitChange}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 outline-hidden font-bold"
               />
@@ -493,7 +560,7 @@ export default function AdminScholarshipFormPage() {
               <input
                 type="text"
                 name="otherBenefits"
-                value={formData.benefits.otherBenefits}
+                value={formData.benefits?.otherBenefits ?? ''}
                 onChange={handleBenefitChange}
                 className="w-full px-3 py-2 rounded-lg border border-gray-300 outline-hidden"
               />
@@ -519,7 +586,7 @@ export default function AdminScholarshipFormPage() {
           </div>
 
           <div className="space-y-3">
-            {formData.eligibilityCriteria.map((rule, idx) => (
+            {(formData.eligibilityCriteria || []).map((rule, idx) => (
               <div key={idx} className="p-3 bg-gray-50 rounded-xl border border-gray-200 grid grid-cols-1 sm:grid-cols-4 gap-2 items-center">
                 <div>
                   <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">Field</label>
@@ -547,7 +614,7 @@ export default function AdminScholarshipFormPage() {
                     <input
                       type="number"
                       placeholder="Max Income (₹)"
-                      value={rule.maxValue || ''}
+                      value={rule.maxValue ?? ''}
                       onChange={(e) => updateRule(idx, 'maxValue', Number(e.target.value))}
                       className="w-full p-1.5 rounded border border-gray-300 bg-white"
                     />
@@ -555,7 +622,7 @@ export default function AdminScholarshipFormPage() {
                     <input
                       type="number"
                       placeholder="Min Mark"
-                      value={rule.minValue || ''}
+                      value={rule.minValue ?? ''}
                       onChange={(e) => updateRule(idx, 'minValue', Number(e.target.value))}
                       className="w-full p-1.5 rounded border border-gray-300 bg-white"
                     />
@@ -563,7 +630,7 @@ export default function AdminScholarshipFormPage() {
                     <input
                       type="text"
                       placeholder="Comma separated values"
-                      value={rule.values ? rule.values.join(',') : ''}
+                      value={Array.isArray(rule.values) ? rule.values.join(', ') : (rule.values ? String(rule.values) : '')}
                       onChange={(e) =>
                         updateRule(
                           idx,
@@ -625,11 +692,11 @@ export default function AdminScholarshipFormPage() {
           </div>
 
           <div className="space-y-2">
-            {formData.requiredDocuments.map((doc, idx) => (
+            {(formData.requiredDocuments || []).map((doc, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <input
                   type="text"
-                  value={doc}
+                  value={typeof doc === 'string' ? doc : (doc?.documentName || doc?.name || '')}
                   onChange={(e) => updateDocument(idx, e.target.value)}
                   className="flex-1 p-2 rounded-lg border border-gray-300"
                 />

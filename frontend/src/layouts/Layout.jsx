@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 const Layout = ({ showSidebar = true }) => {
   return (
@@ -12,19 +12,25 @@ const Layout = ({ showSidebar = true }) => {
 
           {/* Main Content */}
           <main className="min-w-0 flex-1 lg:ml-[260px]">
-            <Navbar />
-
             <div className="p-4 sm:p-6 lg:p-8">
-              <Outlet />
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </main>
         </div>
       ) : (
         <>
-          <Navbar />
+          <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-6 backdrop-blur">
+            <a href="/" className="flex items-center gap-2 font-black text-indigo-600 text-lg">
+              ScholarNest
+            </a>
+          </header>
 
           <main className="min-h-[calc(100vh-64px)]">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </main>
         </>
       )}

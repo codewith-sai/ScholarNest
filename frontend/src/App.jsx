@@ -14,9 +14,11 @@ import BasicPages from "./pages/BasicPages";
 
 // Admin
 import Admin from "./pages/Admin";
+import AdminLoginPage from "./pages/admin/AdminLoginPage";
 
 // Layout / protection
 import Layout from "./layouts/Layout";
+import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -38,6 +40,17 @@ function App() {
         element={<Auth mode="register" />}
       />
 
+      <Route
+        path="/admin/login"
+        element={<AdminLoginPage />}
+      />
+
+      {/* Public Browse without mandatory auth */}
+      <Route
+        path="/scholarships/public"
+        element={<Scholarships />}
+      />
+
       {/* =====================================================
           STUDENT ROUTES
           ===================================================== */}
@@ -56,7 +69,6 @@ function App() {
             element={<CompleteProfile />}
           />
 
-          {/* Keep this route as an alias */}
           <Route
             path="/profile/complete"
             element={<CompleteProfile />}
@@ -116,27 +128,37 @@ function App() {
           ===================================================== */}
 
       <Route element={<ProtectedRoute role="ADMIN" />}>
+        <Route element={<AdminLayout />}>
+          <Route
+            path="/admin/dashboard"
+            element={<Admin page="dashboard" />}
+          />
 
-        <Route
-          path="/admin/dashboard"
-          element={<Admin page="dashboard" />}
-        />
+          <Route
+            path="/admin/scholarships"
+            element={<Admin page="scholarships" />}
+          />
 
-        <Route
-          path="/admin/scholarships"
-          element={<Admin page="scholarships" />}
-        />
+          <Route
+            path="/admin/scholarships/new"
+            element={<Admin page="new-scholarship" />}
+          />
 
-        <Route
-          path="/admin/scholarships/new"
-          element={<Admin page="new-scholarship" />}
-        />
+          <Route
+            path="/admin/scholarships/:id/edit"
+            element={<Admin page="edit-scholarship" />}
+          />
 
-        <Route
-          path="/admin/students"
-          element={<Admin page="students" />}
-        />
+          <Route
+            path="/admin/scholarships/edit/:id"
+            element={<Admin page="edit-scholarship" />}
+          />
 
+          <Route
+            path="/admin/students"
+            element={<Admin page="students" />}
+          />
+        </Route>
       </Route>
 
       {/* =====================================================

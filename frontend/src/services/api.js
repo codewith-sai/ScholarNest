@@ -35,14 +35,21 @@ api.interceptors.response.use(
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      // Avoid redirecting while already on authentication pages
+      // Avoid redirecting while already on public or authentication pages
       const currentPath = window.location.pathname;
 
       if (
         currentPath !== "/login" &&
-        currentPath !== "/register"
+        currentPath !== "/register" &&
+        currentPath !== "/admin/login" &&
+        currentPath !== "/" &&
+        !currentPath.startsWith("/scholarships/public")
       ) {
-        window.location.href = "/login";
+        if (currentPath.startsWith("/admin")) {
+          window.location.href = "/admin/login";
+        } else {
+          window.location.href = "/login";
+        }
       }
     }
 

@@ -1,0 +1,30 @@
+{
+  "name": "scholarnest-backend",
+  "version": "1.0.0",
+  "description": "ScholarNest Backend API with Deterministic Eligibility Engine",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node src/tests/eligibility.test.js",
+    "seed": "node src/seed.js",
+    "admin": "node src/create_admin.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^10.1.0",
+    "pg": "^8.13.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  }
+}

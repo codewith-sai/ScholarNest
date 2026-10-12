@@ -8,11 +8,13 @@ import {
   Loader2,
   MapPin,
   Save,
+  Sparkles,
   User,
   Users,
   Wallet,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 
 import api from "../services/api";
 
@@ -20,8 +22,9 @@ const initialProfile = {
   fullName: "",
   dob: "",
   gender: "",
-  state: "",
+  state: "Maharashtra",
   district: "",
+  taluka: "",
   city: "",
   areaType: "",
 
@@ -43,7 +46,7 @@ const initialProfile = {
   previousPercentage: "",
   currentCGPA: "",
 
-  domicileState: "",
+  domicileState: "Maharashtra",
   specialEligibility: "",
 };
 
@@ -176,6 +179,23 @@ const SelectField = ({
   </div>
 );
 
+const formatAcademicYear = (val) => {
+  if (val === null || val === undefined || val === "") return "";
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (trimmed.toLowerCase() === "other") return "Other";
+    if (trimmed.toLowerCase().includes("year")) return trimmed;
+  }
+  const num = typeof val === "number" ? val : parseInt(String(val).match(/\d+/)?.[0] || "", 10);
+  if (num === 1) return "1st Year";
+  if (num === 2) return "2nd Year";
+  if (num === 3) return "3rd Year";
+  if (num === 4) return "4th Year";
+  if (num === 5) return "5th Year";
+  if (isNaN(num)) return String(val);
+  return `${num}th Year`;
+};
+
 const Profile = ({ edit = false }) => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
@@ -185,6 +205,17 @@ const Profile = ({ edit = false }) => {
   const [saving, setSaving] = useState(false);
 
   const isEditing = edit;
+
+  useEffect(() => {
+    if (user?.name || user?.fullName) {
+      setProfile((prev) => ({
+        ...prev,
+        fullName: prev.fullName || user.fullName || user.name || "",
+        state: prev.state || "Maharashtra",
+        domicileState: prev.domicileState || "Maharashtra",
+      }));
+    }
+  }, [user]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -198,21 +229,69 @@ const Profile = ({ edit = false }) => {
           response.data?.data ||
           response.data;
 
+        const effectiveFullName =
+          data?.fullName ||
+          user?.fullName ||
+          user?.name ||
+          "";
+
         if (data) {
-          setProfile({
+          const incCert =
+            data.incomeCertificate === true || data.incomeCertificate === "Yes" || data.incomeCertificate === "Available"
+              ? "Available"
+              : data.incomeCertificate === false || data.incomeCertificate === "No" || data.incomeCertificate === "Not Available"
+              ? "Not Available"
+              : (data.incomeCertificate || "");
+
+          setProfile((prev) => ({
             ...initialProfile,
             ...data,
-          });
+            fullName: effectiveFullName || prev.fullName,
+            state: data.state || prev.state || "Maharashtra",
+            domicileState: data.domicileState || data.state || prev.domicileState || "Maharashtra",
+            academicYear: formatAcademicYear(data.academicYear),
+            incomeCertificate: incCert,
+            taluka: data.taluka || "",
+            annualFamilyIncome: data.annualFamilyIncome ?? data.annualIncome ?? "",
+            institution: data.institution || data.college || "",
+          }));
+        } else {
+          setProfile((prev) => ({
+            ...initialProfile,
+            fullName: effectiveFullName || prev.fullName,
+            state: "Maharashtra",
+            domicileState: "Maharashtra",
+          }));
         }
       } catch (error) {
         console.error("Profile loading error:", error);
 
-        if (user?.profile) {
-          setProfile({
-            ...initialProfile,
-            ...user.profile,
-          });
-        }
+        const up = user?.profile || {};
+        const effectiveFullName =
+          up.fullName ||
+          user?.fullName ||
+          user?.name ||
+          "";
+
+        const incCert =
+          up.incomeCertificate === true || up.incomeCertificate === "Yes" || up.incomeCertificate === "Available"
+            ? "Available"
+            : up.incomeCertificate === false || up.incomeCertificate === "No" || up.incomeCertificate === "Not Available"
+            ? "Not Available"
+            : (up.incomeCertificate || "");
+
+        setProfile((prev) => ({
+          ...initialProfile,
+          ...up,
+          fullName: effectiveFullName || prev.fullName,
+          state: up.state || prev.state || "Maharashtra",
+          domicileState: up.domicileState || up.state || prev.domicileState || "Maharashtra",
+          academicYear: formatAcademicYear(up.academicYear),
+          incomeCertificate: incCert,
+          taluka: up.taluka || "",
+          annualFamilyIncome: up.annualFamilyIncome ?? up.annualIncome ?? "",
+          institution: up.institution || up.college || "",
+        }));
       } finally {
         setLoading(false);
       }
@@ -221,6 +300,38 @@ const Profile = ({ edit = false }) => {
     loadProfile();
   }, [user]);
 
+  const handleAutoFillSample = () => {
+    const studentName = user?.name || user?.fullName || profile.fullName || "Student Name";
+    setProfile({
+      fullName: studentName,
+      dob: profile.dob || "2005-06-15",
+      gender: profile.gender || "Male",
+      state: "Maharashtra",
+      district: profile.district || "Pune",
+      taluka: profile.taluka || "Haveli",
+      city: profile.city || "Pune",
+      areaType: profile.areaType || "Urban",
+      category: profile.category || "OBC",
+      casteCommunity: profile.casteCommunity || "Kunbi",
+      minority: profile.minority || "No",
+      disability: profile.disability || "No",
+      disabilityType: "",
+      annualFamilyIncome: profile.annualFamilyIncome || 220000,
+      incomeCertificate: "Available",
+      parentOccupation: profile.parentOccupation || "Agriculture / Farming",
+      educationLevel: profile.educationLevel || "Undergraduate",
+      institution: profile.institution || "Government College of Engineering, Pune (COEP)",
+      course: profile.course || "B.Tech / Engineering",
+      branch: profile.branch || "Computer Science",
+      academicYear: profile.academicYear || "2nd Year",
+      previousPercentage: profile.previousPercentage || 85.5,
+      currentCGPA: profile.currentCGPA || 8.6,
+      domicileState: "Maharashtra",
+      specialEligibility: "None",
+    });
+    toast.success("Automatically added personal and academic matching details!");
+  };
+
   const completion = useMemo(() => {
     const fields = [
       "fullName",
@@ -228,6 +339,7 @@ const Profile = ({ edit = false }) => {
       "gender",
       "state",
       "district",
+      "taluka",
       "city",
       "category",
       "minority",
@@ -319,24 +431,52 @@ const Profile = ({ edit = false }) => {
     try {
       setSaving(true);
 
+      const parsedYear = profile.academicYear
+   
+      ? parseInt(String(profile.academicYear).match(/\d+/)?.[0] || "1", 10)
+        : null;
+
       const payload = {
         ...profile,
-
-        annualFamilyIncome:
-          profile.annualFamilyIncome === ""
+        taluka: profile.taluka || null,
+        college: profile.institution || profile.college || null,
+        institution: profile.institution || profile.college || null,
+        annualIncome:
+          profile.annualFamilyIncome === "" || profile.annualFamilyIncome === null
             ? null
             : Number(profile.annualFamilyIncome),
-
+        annualFamilyIncome:
+          profile.annualFamilyIncome === "" || profile.annualFamilyIncome === null
+            ? null
+            : Number(profile.annualFamilyIncome),
         previousPercentage:
-          profile.previousPercentage === ""
+          profile.previousPercentage === "" || profile.previousPercentage === null
             ? null
             : Number(profile.previousPercentage),
-
+        percentage:
+          profile.previousPercentage === "" || profile.previousPercentage === null
+            ? null
+            : Number(profile.previousPercentage),
         currentCGPA:
-          profile.currentCGPA === ""
+          profile.currentCGPA === "" || profile.currentCGPA === null
             ? null
             : Number(profile.currentCGPA),
-
+        cgpa:
+          profile.currentCGPA === "" || profile.currentCGPA === null
+            ? null
+            : Number(profile.currentCGPA),
+        academicYear: parsedYear,
+        incomeCertificate:
+          profile.incomeCertificate === "Available" ||
+          profile.incomeCertificate === "Yes" ||
+          profile.incomeCertificate === true ||
+          profile.incomeCertificate === "true" ||
+          profile.incomeCertificate === "Applied",
+        minorityStatus:
+          profile.minority === "Yes" || profile.minority === true || profile.minority === "true",
+        disabilityStatus:
+          profile.disability === "Yes" || profile.disability === true || profile.disability === "true",
+        dateOfBirth: profile.dob || null,
         profileCompleted: true,
       };
 
@@ -421,7 +561,7 @@ const Profile = ({ edit = false }) => {
           </p>
         </div>
 
-        {!isEditing && (
+        {!isEditing ? (
           <Link
             to="/profile/edit"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:bg-indigo-700"
@@ -429,6 +569,18 @@ const Profile = ({ edit = false }) => {
             <Edit3 size={17} />
             Edit Profile
           </Link>
+        ) : (
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleAutoFillSample}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-700 shadow-xs hover:bg-indigo-100 transition"
+              title="Automatically pre-fill realistic scholarship matching details"
+            >
+              <Sparkles size={15} />
+              <span>Auto-Fill Details</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -488,14 +640,25 @@ const Profile = ({ edit = false }) => {
           description="Basic information used for scholarship matching."
         >
           <div className="grid gap-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+            <div>
               <TextField
                 label="Full name"
                 name="fullName"
-                value={profile.fullName}
+                value={profile.fullName || user?.name || user?.fullName || ""}
                 onChange={handleChange}
                 disabled={!isEditing}
                 placeholder="Your full name"
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Registered Account Email</label>
+              <input
+                type="email"
+                disabled
+                value={user?.email || profile.email || ""}
+                placeholder="student@example.com"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 font-medium cursor-not-allowed"
               />
             </div>
 
@@ -552,7 +715,16 @@ const Profile = ({ edit = false }) => {
               value={profile.district}
               onChange={handleChange}
               disabled={!isEditing}
-              placeholder="District"
+              placeholder="e.g. Pune, Chandrapur"
+            />
+
+            <TextField
+              label="Taluka / Tehsil"
+              name="taluka"
+              value={profile.taluka}
+              onChange={handleChange}
+              disabled={!isEditing}
+              placeholder="e.g. Haveli, Chandrapur"
             />
 
             <TextField
