@@ -1,13 +1,20 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL:
+    import.meta.env.VITE_API_URL||'http://localhost:8080/api' ,
+   
+
+  withCredentials: true,
+
+  timeout: 10000,
+
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 15000,
 });
 
+<<<<<<< HEAD
 // Add JWT token to every request
 api.interceptors.request.use(
   (config) => {
@@ -57,4 +64,6 @@ api.interceptors.response.use(
   }
 );
 
+=======
+>>>>>>> c28c600bb8640e657e76f4102ec6c9096b22d571
 export default api;
