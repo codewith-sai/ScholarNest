@@ -104,12 +104,16 @@ npm test
 
 ---
 
-## 🔐 Demo Development Accounts
+## 🔐 Demo & Admin Accounts
 
 | Role | Email | Password | Details |
 | :--- | :--- | :--- | :--- |
 | **Student** | `student@scholarnest.local` | `Student@123` | Pooja Patil (COEP B.Tech, OBC, Pune, ₹2.2L income) |
-| **Admin** | `admin@scholarnest.local` | `Admin@123` | ScholarNest Administrator |
+
+> **Note on Administrator Access:** Default hardcoded admin credentials have been removed. To provision or update an administrator account securely, run:
+> ```bash
+> cd backend && node src/create_admin.js <email> <password> [name]
+> ```
 
 ---
 
