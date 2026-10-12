@@ -28,17 +28,12 @@ export async function getApplications(req, res, next) {
 
 export async function updateStatus(req, res, next) {
   try {
-    if (!req.user.profile) {
-      return res.status(400).json({ message: 'Profile required.' });
-    }
-
     const status = statusSchema.parse(req.body.status);
     const trackingId = Number(req.params.id);
 
     const result = await db.applicationTracking.updateMany({
       where: {
-        id: trackingId,
-        studentId: req.user.profile.id
+        id: trackingId
       },
       data: {
         status,

@@ -254,9 +254,6 @@ function Applications() {
   const [loading, setLoading] =
     useState(true);
 
-  const [updatingId, setUpdatingId] =
-    useState(null);
-
   const loadApplications = async () => {
     try {
       const response =
@@ -282,55 +279,13 @@ function Applications() {
     loadApplications();
   }, []);
 
-  const updateStatus = async (
-    application,
-    status
-  ) => {
-    const id =
-      application._id ||
-      application.id;
-
-    setUpdatingId(id);
-
-    try {
-      await api.put(
-        `/applications/${id}`,
-        { status }
-      );
-
-      setApplications((current) =>
-        current.map((item) =>
-          String(
-            item._id || item.id
-          ) === String(id)
-            ? {
-                ...item,
-                status,
-              }
-            : item
-        )
-      );
-
-      toast.success(
-        "Application status updated."
-      );
-    } catch (error) {
-      toast.error(
-        error.response?.data?.message ||
-          "Unable to update application."
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
   const statusCounts = useMemo(() => {
     return APPLICATION_STATUSES.reduce(
       (result, status) => {
         result[status] =
           applications.filter(
             (application) =>
-              application.status ===
+              formatStatusLabel(application.status) ===
               status
           ).length;
 
@@ -388,16 +343,6 @@ function Applications() {
                   application.id
                 }
                 application={application}
-                updating={
-                  String(updatingId) ===
-                  String(
-                    application._id ||
-                      application.id
-                  )
-                }
-                onStatusChange={
-                  updateStatus
-                }
               />
             )
           )}
@@ -409,8 +354,6 @@ function Applications() {
 
 function ApplicationCard({
   application,
-  updating,
-  onStatusChange,
 }) {
   const scholarship =
     application.scholarship ||
@@ -452,51 +395,32 @@ function ApplicationCard({
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <StatusBadge
-                status={
-                  application.status ||
-                  "Saved"
-                }
-              />
-
               <Tag>
                 Deadline:{" "}
                 {formatDate(deadline)}
               </Tag>
+              {scholarship.schemeType && (
+                <Tag>
+                  {scholarship.schemeType}
+                </Tag>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="w-full lg:w-56">
-          <label className="mb-2 block text-xs font-bold text-slate-500">
+        <div className="w-full lg:w-56 shrink-0">
+          <span className="mb-2 block text-xs font-bold text-slate-500">
             Application Status
-          </label>
+          </span>
 
-          <select
-            value={
-              application.status ||
-              "Saved"
-            }
-            disabled={updating}
-            onChange={(event) =>
-              onStatusChange(
-                application,
-                event.target.value
-              )
-            }
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-50 disabled:opacity-60"
-          >
-            {APPLICATION_STATUSES.map(
-              (status) => (
-                <option
-                  key={status}
-                  value={status}
-                >
-                  {status}
-                </option>
-              )
-            )}
-          </select>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
+            <StatusBadge
+              status={
+                application.status ||
+                "Saved"
+              }
+            />
+          </div>
         </div>
       </div>
 
@@ -510,12 +434,6 @@ function ApplicationCard({
             {application.notes}
           </p>
         </div>
-      )}
-
-      {updating && (
-        <p className="mt-3 text-xs font-semibold text-indigo-600">
-          Updating application status...
-        </p>
       )}
     </article>
   );
@@ -1194,18 +1112,39 @@ function Tag({ children }) {
   );
 }
 
+function formatStatusLabel(status) {
+  if (!status) return "Saved";
+  const map = {
+    SAVED: "Saved",
+    PLANNING: "Planning to Apply",
+    APPLIED: "Applied",
+    UNDER_REVIEW: "Under Review",
+    SELECTED: "Selected",
+    REJECTED: "Rejected",
+    "Planning to Apply": "Planning to Apply",
+    "Under Review": "Under Review",
+    Saved: "Saved",
+    Applied: "Applied",
+    Selected: "Selected",
+    Rejected: "Rejected"
+  };
+  return map[status] || status;
+}
+
 function StatusBadge({
   status,
 }) {
+  const normalized =
+    formatStatusLabel(status);
   const config =
-    getStatusConfig(status);
+    getStatusConfig(normalized);
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${config.className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${config.className}`}
     >
-      <config.icon size={12} />
-      {status}
+      <config.icon size={13} />
+      {normalized}
     </span>
   );
 }
