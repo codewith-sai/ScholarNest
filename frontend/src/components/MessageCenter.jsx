@@ -12,8 +12,8 @@ import {
 const demoConversations = [
   {
     id: 1,
-    name: "ScholarNet Support",
-    message: "Welcome to ScholarNet!",
+    name: "ScholarNest Support",
+    message: "Welcome to ScholarNest!",
     time: "10:30 AM",
     unread: 2,
     online: true,
@@ -41,7 +41,7 @@ const demoMessages = {
     {
       id: 1,
       sender: "other",
-      text: "Hello! Welcome to ScholarNet.",
+      text: "Hello! Welcome to ScholarNest.",
       time: "10:28 AM",
     },
     {

@@ -9,22 +9,35 @@ export async function seedDatabase() {
   await db.applicationTracking.deleteMany();
   await db.savedScholarship.deleteMany();
   await db.scholarship.deleteMany();
-  // Optional: create admin only if explicitly provided in environment variables
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-    let envAdmin = await db.user.findUnique({ where: { email: process.env.ADMIN_EMAIL } });
-    if (!envAdmin) {
-      const adminPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
-      await db.user.create({
-        data: {
-          name: process.env.ADMIN_NAME || 'ScholarNest Admin',
-          email: process.env.ADMIN_EMAIL,
-          passwordHash: adminPassword,
-          role: 'ADMIN',
-          enabled: true
-        }
-      });
-      console.log(`[Seed] Created admin account from environment: ${process.env.ADMIN_EMAIL}`);
-    }
+  // Create or verify default Administrator account
+  const defaultAdminEmail = process.env.ADMIN_EMAIL || 'sai@gmail.com';
+  const defaultAdminPassword = process.env.ADMIN_PASSWORD || 'admin1234';
+  const defaultAdminName = process.env.ADMIN_NAME || 'Sai Mutthalkar';
+
+  let admin = await db.user.findUnique({ where: { email: defaultAdminEmail } });
+  const adminPasswordHash = await bcrypt.hash(defaultAdminPassword, 10);
+  if (!admin) {
+    admin = await db.user.create({
+      data: {
+        name: defaultAdminName,
+        email: defaultAdminEmail,
+        passwordHash: adminPasswordHash,
+        role: 'ADMIN',
+        enabled: true
+      }
+    });
+    console.log(`[Seed] Created default admin account: ${defaultAdminEmail}`);
+  } else {
+    await db.user.update({
+      where: { id: admin.id },
+      data: {
+        name: defaultAdminName,
+        passwordHash: adminPasswordHash,
+        role: 'ADMIN',
+        enabled: true
+      }
+    });
+    console.log(`[Seed] Verified/updated default admin account: ${defaultAdminEmail}`);
   }
 
   // Create or retrieve Demo Student

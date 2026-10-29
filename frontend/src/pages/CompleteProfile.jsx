@@ -971,7 +971,7 @@ const CompleteProfile = () => {
                   </h3>
 
                   <p className="mt-1 text-sm leading-6 text-indigo-700">
-                    After saving, ScholarNet will use your profile to identify
+                    After saving, ScholarNest will use your profile to identify
                     scholarships whose listed criteria appear to match your
                     information.
                   </p>
@@ -1002,7 +1002,7 @@ const CompleteProfile = () => {
 
             <div className="text-left">
               <div className="text-xl font-black text-slate-900">
-                Scholar<span className="text-indigo-600">Net</span>
+                Scholar<span className="text-indigo-600">Nest</span>
               </div>
 
               <div className="text-[10px] font-medium text-slate-400">

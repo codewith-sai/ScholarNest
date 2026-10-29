@@ -1,14 +1,14 @@
 import { db } from './db.js';
 import bcrypt from 'bcryptjs';
 
-const email = process.argv[2] || process.env.ADMIN_EMAIL;
-const password = process.argv[3] || process.env.ADMIN_PASSWORD;
-const name = process.argv[4] || process.env.ADMIN_NAME || 'ScholarNest Admin';
+const email = process.argv[2] || process.env.ADMIN_EMAIL || 'sai@gmail.com';
+const password = process.argv[3] || process.env.ADMIN_PASSWORD || 'admin1234';
+const name = process.argv[4] || process.env.ADMIN_NAME || 'Sai Mutthalkar';
 
 if (!email || !password) {
   console.error('❌ Error: Email and password are required.');
-  console.error('Usage: node src/create_admin.js <email> <password> [name]');
-  console.error('Example: node src/create_admin.js admin@example.com MyStrongPassword123');
+  console.error('Usage: node src/create_admin.js [email] [password] [name]');
+  console.error('Example: node src/create_admin.js sai@gmail.com admin1234');
   process.exit(1);
 }
 

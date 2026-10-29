@@ -92,7 +92,7 @@ const Auth = ({ mode = "login" }) => {
           password: form.password,
         });
 
-        toast.success("Welcome back to ScholarNet!");
+        toast.success("Welcome back to ScholarNest!");
 
         const loggedInUser = response?.user;
 
@@ -147,7 +147,7 @@ const Auth = ({ mode = "login" }) => {
 
               <div>
                 <div className="text-2xl font-extrabold text-white">
-                  Scholar<span className="text-pink-200">Net</span>
+                  Scholar<span className="text-pink-200">Nest</span>
                 </div>
                 <p className="text-xs text-indigo-100">
                   Discover. Understand. Apply.
@@ -193,7 +193,7 @@ const Auth = ({ mode = "login" }) => {
             </div>
 
             <p className="text-xs text-indigo-200">
-              ScholarNet is a scholarship discovery and guidance platform.
+              ScholarNest is a scholarship discovery and guidance platform.
               Always verify current requirements on the official scholarship
               portal.
             </p>
@@ -212,7 +212,7 @@ const Auth = ({ mode = "login" }) => {
 
                 <div>
                   <div className="text-xl font-extrabold text-slate-900">
-                    Scholar<span className="text-indigo-600">Net</span>
+                    Scholar<span className="text-indigo-600">Nest</span>
                   </div>
 
                   <p className="text-[11px] text-slate-400">
@@ -229,8 +229,8 @@ const Auth = ({ mode = "login" }) => {
 
               <h2 className="text-3xl font-black tracking-tight text-slate-900">
                 {isLogin
-                  ? "Sign in to ScholarNet"
-                  : "Create your ScholarNet account"}
+                  ? "Sign in to ScholarNest"
+                  : "Create your ScholarNest account"}
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -441,7 +441,7 @@ const Auth = ({ mode = "login" }) => {
             </div>
 
             <p className="mt-7 text-center text-[11px] leading-5 text-slate-400">
-              By continuing, you understand that ScholarNet provides
+              By continuing, you understand that ScholarNest provides
               scholarship discovery and guidance. Eligibility should be
               verified against the latest official scholarship requirements.
             </p>

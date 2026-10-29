@@ -1,4 +1,4 @@
-# ScholarNest (ScholarNet)
+# ScholarNest (ScholarNest)
 
 > **Maharashtra & Central Scholarship Discovery, Eligibility & Application Guidance Platform**  
 > *"Find. Understand. Apply."*
@@ -108,11 +108,12 @@ npm test
 
 | Role | Email | Password | Details |
 | :--- | :--- | :--- | :--- |
+| **Admin** | `sai@gmail.com` | `admin1234` | Sai Mutthalkar (ScholarNest Administrator) |
 | **Student** | `student@scholarnest.local` | `Student@123` | Pooja Patil (COEP B.Tech, OBC, Pune, ₹2.2L income) |
 
-> **Note on Administrator Access:** Default hardcoded admin credentials have been removed. To provision or update an administrator account securely, run:
+> **Note on Administrator Access:** Default administrator login credentials are pre-configured. To provision or update an administrator account securely, run:
 > ```bash
-> cd backend && node src/create_admin.js <email> <password> [name]
+> cd backend && node src/create_admin.js [email] [password] [name]
 > ```
 
 ---

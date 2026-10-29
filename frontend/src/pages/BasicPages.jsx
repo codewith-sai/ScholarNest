@@ -820,7 +820,7 @@ function SettingsPage() {
       icon={Settings}
       iconClass="bg-slate-100 text-slate-600"
       title="Settings"
-      description="Manage your ScholarNet account and profile settings."
+      description="Manage your ScholarNest account and profile settings."
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
@@ -943,7 +943,7 @@ function SettingsPage() {
                 </h2>
 
                 <p className="text-xs text-slate-400">
-                  ScholarNet notifications are delivered in-app.
+                  ScholarNest notifications are delivered in-app.
                 </p>
               </div>
             </div>
@@ -974,7 +974,7 @@ function SettingsPage() {
             />
 
             <h2 className="mt-5 text-lg font-black">
-              ScholarNet Account
+              ScholarNest Account
             </h2>
 
             <p className="mt-2 text-xs leading-5 text-indigo-100">
@@ -1342,7 +1342,7 @@ function getNotificationTitle(type) {
       return "Profile reminder";
 
     default:
-      return "ScholarNet notification";
+      return "ScholarNest notification";
   }
 }
 
@@ -1351,7 +1351,7 @@ function NotFoundPage() {
     <EmptyPage
       icon={AlertCircle}
       title="Page not found"
-      description="The requested ScholarNet page could not be found."
+      description="The requested ScholarNest page could not be found."
       actionText="Go to Dashboard"
       actionLink="/dashboard"
     />

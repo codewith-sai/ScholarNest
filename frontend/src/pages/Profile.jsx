@@ -556,7 +556,7 @@ const Profile = ({ edit = false }) => {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Keep your information updated so ScholarNet
+            Keep your information updated so ScholarNest
             can find relevant scholarships.
           </p>
         </div>
@@ -605,7 +605,7 @@ const Profile = ({ edit = false }) => {
             </div>
 
             <p className="mt-1 max-w-xl text-sm text-indigo-100">
-              A complete profile helps ScholarNet
+              A complete profile helps ScholarNest
               match you with more relevant scholarship
               opportunities.
             </p>
@@ -1158,7 +1158,7 @@ const Profile = ({ edit = false }) => {
             </p>
 
             <p className="mt-1 text-xs leading-5 text-indigo-700">
-              ScholarNet provides eligibility guidance based
+              ScholarNest provides eligibility guidance based
               on the information you provide. Always verify
               the latest eligibility criteria, documents,
               deadlines and application instructions on the

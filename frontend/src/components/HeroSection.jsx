@@ -34,7 +34,7 @@ const HeroSection = () => {
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-            ScholarNet helps students discover scholarship
+            ScholarNest helps students discover scholarship
             opportunities based on their education,
             category, income, location, academic
             information and other eligibility requirements.

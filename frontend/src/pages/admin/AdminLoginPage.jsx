@@ -7,8 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 export default function AdminLoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('sai@gmail.com');
+  const [password, setPassword] = useState('admin1234');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter admin email"
+                placeholder="sai@gmail.com"
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-hidden focus:border-blue-500"
               />
             </div>
@@ -69,7 +69,7 @@ export default function AdminLoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter admin password"
+                placeholder="admin1234"
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-hidden focus:border-blue-500"
               />
             </div>
@@ -78,7 +78,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition mt-2"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 transition mt-2 cursor-pointer"
           >
             {loading ? 'Authenticating...' : 'Sign In to Admin Portal'}
             <ArrowRight size={16} />

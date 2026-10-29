@@ -13,6 +13,7 @@ import savedRoutes from './routes/savedRoutes.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { seedDatabase } from './seed.js';
 import { db } from './db.js';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
@@ -83,6 +84,24 @@ async function startServer() {
     if (existingCount === 0) {
       console.log('[Server] No scholarships found. Seeding initial database...');
       await seedDatabase();
+    } else {
+      // Ensure default admin account exists
+      const adminEmail = process.env.ADMIN_EMAIL || 'sai@gmail.com';
+      const existingAdmin = await db.user.findUnique({ where: { email: adminEmail } });
+      if (!existingAdmin) {
+        const adminPassword = process.env.ADMIN_PASSWORD || 'admin1234';
+        const passwordHash = await bcrypt.hash(adminPassword, 10);
+        await db.user.create({
+          data: {
+            name: process.env.ADMIN_NAME || 'Sai Mutthalkar',
+            email: adminEmail,
+            passwordHash,
+            role: 'ADMIN',
+            enabled: true
+          }
+        });
+        console.log(`[Server] Ensured default admin account: ${adminEmail}`);
+      }
     }
 
     app.listen(PORT, () => {

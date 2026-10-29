@@ -186,7 +186,7 @@ const Sidebar = ({
                 <h1 className="text-lg font-black tracking-tight text-slate-900">
                   Scholar
                   <span className="text-indigo-600">
-                    Net
+                    Nest
                   </span>
                 </h1>
 

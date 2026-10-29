@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node src/tests/eligibility.test.js",
+    "test": "node src/tests/eligibility.test.js && node src/tests/auth.test.js",
     "seed": "node src/seed.js",
     "admin": "node src/create_admin.js",
     "prisma:generate": "prisma generate",

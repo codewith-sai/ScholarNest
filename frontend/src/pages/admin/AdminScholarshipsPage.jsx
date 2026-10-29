@@ -254,7 +254,7 @@ const AdminScholarshipsPage = () => {
 
           <p className="mt-1 text-sm text-slate-500">
             Create, update, activate and manage
-            scholarships available on ScholarNet.
+            scholarships available on ScholarNest.
           </p>
         </div>
 
