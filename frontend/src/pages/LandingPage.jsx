@@ -5,6 +5,7 @@ import {
   Sparkles,
   Search,
   AlertCircle,
+  CheckCircle2,
   ArrowRight,
   ShieldCheck,
   FileText,

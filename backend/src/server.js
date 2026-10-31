@@ -104,19 +104,25 @@ async function startServer() {
       }
     }
 
-    app.listen(PORT, () => {
-      console.log(`===============================================`);
-      console.log(`  ScholarNest API Server running on port ${PORT} `);
-      console.log(`  Base URL: http://localhost:${PORT}/api         `);
-      console.log(`===============================================`);
-    });
+    if (!process.env.VERCEL) {
+      app.listen(PORT, () => {
+        console.log(`===============================================`);
+        console.log(`  ScholarNest API Server running on port ${PORT} `);
+        console.log(`  Base URL: http://localhost:${PORT}/api         `);
+        console.log(`===============================================`);
+      });
+    }
   } catch (error) {
     console.error('[Server Start Error]', error);
-    process.exit(1);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
   }
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
 
 export default app;
 
